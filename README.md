@@ -14,7 +14,7 @@ Dự án này là bộ đôi tiện ích mở rộng (Chrome Extensions) đượ
   - Tải và nhận diện đuôi tệp để tự động hiển thị biểu tượng tương ứng (.docx, .pdf, .zip, .jar...).
   - Hiển thị tệp tin đã bị xóa khỏi đĩa cứng (hiệu ứng gạch ngang tên tệp và nhãn "Removed").
   - Thanh tiến trình tải xuống thời gian thực đối với các tệp tin đang tải.
-  - Thao tác nhanh: Mở tệp trực tiếp, hiển thị tệp trong thư mục lưu trữ, hoặc xóa khỏi lịch sử tải xuống.
+  - Thao tác nhanh: Mở tệp trực tiếp, hiển thị tệp trong thư mục lưu trữ, tiếp tục/tải lại lượt tải bị gián đoạn, hoặc xóa khỏi lịch sử tải xuống.
 
 ## 2. Yêu cầu hệ thống
 - Trình duyệt Google Chrome hoặc các trình duyệt nhân Chromium (như Cốc Cốc, Brave, Opera, Microsoft Edge) phiên bản mới hỗ trợ Manifest V3.

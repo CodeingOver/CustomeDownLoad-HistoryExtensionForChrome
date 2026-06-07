@@ -4,6 +4,18 @@ Tài liệu này ghi lại toàn bộ lịch sử các phiên bản phát hành 
 
 ---
 
+### [v1.2.24] - 2026-06-07
+
+#### - **[Thêm mới]**
+- Bổ sung thao tác phục hồi lượt tải thất bại trong `EdgeDownloadsPopup`:
+  - Khi download ở trạng thái `interrupted` và Chrome báo `canResume`, popup hiển thị nút `Resume` để tiếp tục lượt tải cũ bằng `chrome.downloads.resume()`.
+  - Khi không thể resume nhưng vẫn còn URL gốc, popup hiển thị nút `Retry` để tải lại bằng `chrome.downloads.download()` với `conflictAction: 'uniquify'`.
+  - Nếu thao tác Resume thất bại nhưng vẫn còn URL, popup tự fallback sang Retry.
+
+#### - **[Cập nhật]**
+- Hiển thị nguyên nhân lỗi tải xuống dễ đọc hơn từ `item.error`, ví dụ `Network Failed` thay cho trạng thái chung chung.
+- Đồng bộ nâng phiên bản của cả hai tiện ích mở rộng lên `1.2.24` tại các tệp `manifest.json`.
+
 ### [v1.2.23] - 2026-06-07
 
 #### - **[Sửa lỗi]**

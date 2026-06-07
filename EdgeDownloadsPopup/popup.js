@@ -282,7 +282,18 @@ document.addEventListener('DOMContentLoaded', function () {
     } else if (item.state === 'interrupted') {
       const statusLabel = li.querySelector('[data-role="status-label"]');
       statusLabel.classList.remove('hidden');
-      statusLabel.textContent = 'Failed / Interrupted';
+      statusLabel.textContent = getFailedStatusText(item);
+
+      const failedActions = li.querySelector('[data-role="failed-actions"]');
+      const resumeFailedLink = li.querySelector('[data-action="resume-failed"]');
+      const retryLink = li.querySelector('[data-action="retry"]');
+      if (item.canResume) {
+        failedActions.classList.remove('hidden');
+        resumeFailedLink.classList.remove('hidden');
+      } else if (getRetryUrl(item)) {
+        failedActions.classList.remove('hidden');
+        retryLink.classList.remove('hidden');
+      }
     }
 
     // Show in folder button (only if download is complete and not removed)
@@ -306,6 +317,10 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     } else if (action === 'cancel') {
       chrome.downloads.cancel(item.id);
+    } else if (action === 'resume-failed') {
+      resumeFailedDownload(item);
+    } else if (action === 'retry') {
+      retryDownload(item);
     } else if (action === 'open') {
       openDownload(item.id);
     } else if (action === 'show-folder') {
@@ -313,6 +328,37 @@ document.addEventListener('DOMContentLoaded', function () {
     } else if (action === 'delete') {
       deleteDownload(item, row);
     }
+  }
+
+  function resumeFailedDownload(item) {
+    chrome.downloads.resume(item.id, () => {
+      if (chrome.runtime.lastError) {
+        console.warn("[popup.js] Không thể tiếp tục lượt tải:", chrome.runtime.lastError.message);
+        if (getRetryUrl(item)) {
+          retryDownload(item);
+        }
+        return;
+      }
+
+      loadDownloads(searchInput.value);
+    });
+  }
+
+  function retryDownload(item) {
+    const retryUrl = getRetryUrl(item);
+    if (!retryUrl) return;
+
+    chrome.downloads.download({
+      url: retryUrl,
+      conflictAction: 'uniquify'
+    }, () => {
+      if (chrome.runtime.lastError) {
+        console.warn("[popup.js] Không thể tải lại tệp:", chrome.runtime.lastError.message);
+        return;
+      }
+
+      loadDownloads(searchInput.value);
+    });
   }
 
   function openDownload(id) {
@@ -408,6 +454,23 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!path) return 'Unknown File';
     const parts = path.split(/[/\\]/);
     return parts[parts.length - 1] || 'Unknown File';
+  }
+
+  function getRetryUrl(item) {
+    return item.finalUrl || item.url || '';
+  }
+
+  function getFailedStatusText(item) {
+    if (!item.error) {
+      return 'Failed / Interrupted';
+    }
+
+    const readableError = item.error
+      .toLowerCase()
+      .split('_')
+      .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
+    return `Failed / ${readableError}`;
   }
 
   // Format File Bytes
