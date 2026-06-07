@@ -418,7 +418,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
       });
     });
-  }, 1000);
+  }, 2000);
 
   // Dọn dẹp interval khi popup đóng
   window.addEventListener('unload', () => {

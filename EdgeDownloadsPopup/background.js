@@ -332,7 +332,7 @@ function startAnimation() {
     };
 
     chrome.action.setIcon({ path: path }).catch(() => {});
-  }, 800);
+  }, 1500);
 }
 
 // Chỉ xóa bỏ interval hoạt ảnh tiến trình mà không ghi đè biểu tượng

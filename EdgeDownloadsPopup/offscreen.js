@@ -16,9 +16,9 @@ startPolling();
 
 function startPolling() {
   if (progressInterval) return;
-  
+
   console.log("[offscreen.js] Khởi chạy vòng lặp phát nhịp tim (heartbeat tick) mỗi 1 giây.");
-  
+
   progressInterval = setInterval(() => {
     // Gửi nhịp tim về Service Worker để kích hoạt truy vấn tiến trình
     chrome.runtime.sendMessage({
@@ -26,7 +26,7 @@ function startPolling() {
     }).catch(() => {
       // SW có thể đang ngủ, tin nhắn gửi đi sẽ tự động đánh thức nó dậy
     });
-  }, 1000);
+  }, 5000);
 }
 
 function stopPolling() {

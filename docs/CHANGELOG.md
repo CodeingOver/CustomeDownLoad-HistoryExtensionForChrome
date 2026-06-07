@@ -17,6 +17,10 @@ Tài liệu này ghi lại toàn bộ lịch sử các phiên bản phát hành 
 - Sửa lỗi tiến độ tải tại giao diện popup không cập nhật thời gian thực:
   - Bổ sung cơ chế polling trực tiếp tại chỗ (in-place) mỗi 1 giây trong [popup.js](file:///d:/CodePython/CustomeExtensionForChrome/EdgeDownloadsPopup/popup.js), trực tiếp thay đổi thanh tiến trình (`width`) và nhãn phần trăm hiển thị của các thẻ `li` đang tải mà không cần vẽ lại toàn bộ danh sách, đem lại trải nghiệm mượt mà không bị chớp nháy.
 
+- Tối ưu hóa hiệu năng và giảm tải CPU trong suốt quá trình tải xuống:
+  - Giảm tần suất nhịp tim trong [offscreen.js](file:///d:/CodePython/CustomeExtensionForChrome/EdgeDownloadsPopup/offscreen.js) và polling cập nhật giao diện trong [popup.js](file:///d:/CodePython/CustomeExtensionForChrome/EdgeDownloadsPopup/popup.js) từ 1 giây thành 2 giây (2000ms), giúp giảm một nửa (50%) số lượng lời gọi API và cập nhật DOM.
+  - Tăng khoảng thời gian hoạt ảnh nhấp nháy phát sáng biểu tượng tiện ích từ 800ms lên 1.5 giây (1500ms) trong [background.js](file:///d:/CodePython/CustomeExtensionForChrome/EdgeDownloadsPopup/background.js) giúp icon chuyển đổi chậm rãi tinh tế hơn, đồng thời hạn chế tối đa việc trình duyệt liên tục nạp lại file ảnh giúp tiết kiệm CPU đáng kể.
+
 #### - **[Cập nhật]**
 - Cấu hình quyền `"offscreen"` trong tệp [manifest.json (Downloads)](file:///d:/CodePython/CustomeExtensionForChrome/EdgeDownloadsPopup/manifest.json).
 - Đồng bộ nâng phiên bản của cả hai tiện ích mở rộng lên `1.2.13` tại các tệp `manifest.json`.
