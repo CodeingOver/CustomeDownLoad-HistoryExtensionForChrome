@@ -34,8 +34,8 @@ function handleDownloadMessage(type, item) {
   let card = shadowHost.shadowRoot.getElementById(cardId);
 
   const percent = item.totalBytes > 0 ? Math.floor((item.bytesReceived / item.totalBytes) * 100) : 0;
-  const isComplete = type === 'download-complete' || item.state === 'complete';
   const isInterrupted = item.state === 'interrupted';
+  const isComplete = !isInterrupted && (type === 'download-complete' || item.state === 'complete');
 
   let stateText = '';
   if (isComplete) {

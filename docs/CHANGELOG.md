@@ -4,6 +4,18 @@ Tài liệu này ghi lại toàn bộ lịch sử các phiên bản phát hành 
 
 ---
 
+### [v1.2.19] - 2026-06-07
+
+#### - **[Sửa lỗi]**
+- Khắc phục lỗi toast tải xuống rác xuất hiện sau khi tắt rồi mở lại Chrome:
+  - Bổ sung cờ nội bộ `notifyToast` trong `background.js` để phân biệt lượt tải mới của phiên hiện tại với lượt tải cũ được Chrome khôi phục sau khi khởi động lại.
+  - Không phát tin `download-progress` hoặc `download-complete` đến Content Script cho các download có thời điểm bắt đầu cũ hơn Service Worker hiện tại.
+  - Không hiển thị toast thất bại cho download bị hủy chủ động với lỗi `USER_CANCELED`, tránh card `Unknown File / Failed (USER_CANCELED)` xuất hiện lại trên tab active.
+  - Sửa logic trong `content.js` để trạng thái `interrupted` không bị message `download-complete` diễn giải nhầm thành hoàn tất.
+
+#### - **[Cập nhật]**
+- Đồng bộ nâng phiên bản của cả hai tiện ích mở rộng lên `1.2.19` tại các tệp `manifest.json`.
+
 ### [v1.2.18] - 2026-06-07
 
 #### - **[Sửa lỗi]**

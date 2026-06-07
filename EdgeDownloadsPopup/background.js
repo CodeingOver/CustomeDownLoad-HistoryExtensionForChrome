@@ -29,6 +29,8 @@ disableNativeDownloadUi('service-worker-load');
 
 // Listen for new downloads
 chrome.downloads.onCreated.addListener((item) => {
+  const shouldNotifyToast = shouldNotifyDownloadToast(item);
+
   sessionDownloadIds.add(item.id);
   activeDownloads[item.id] = {
     id: item.id,
@@ -37,7 +39,8 @@ chrome.downloads.onCreated.addListener((item) => {
     bytesReceived: item.bytesReceived || 0,
     state: item.state || 'in_progress',
     paused: item.paused || false,
-    error: item.error || null
+    error: item.error || null,
+    notifyToast: shouldNotifyToast
   };
   
   // Chỉ tự động hiển thị popup cho lượt tải mới, không mở khi Chrome khôi phục download cũ lúc startup.
@@ -62,6 +65,23 @@ function shouldAutoOpenPopupForCreatedDownload(item) {
   }
 
   return true;
+}
+
+function shouldNotifyDownloadToast(item) {
+  if (item.error === 'USER_CANCELED') {
+    return false;
+  }
+
+  const startedAt = item.startTime ? Date.parse(item.startTime) : NaN;
+  if (!Number.isNaN(startedAt) && startedAt < serviceWorkerStartedAt - RESTORED_DOWNLOAD_SKEW_MS) {
+    return false;
+  }
+
+  return true;
+}
+
+function canBroadcastDownloadToast(item) {
+  return item && item.notifyToast !== false && item.error !== 'USER_CANCELED';
 }
 
 function disableNativeDownloadUi(source) {
@@ -113,7 +133,8 @@ chrome.downloads.onChanged.addListener((delta) => {
           bytesReceived: item.bytesReceived,
           state: item.state,
           paused: item.paused || false,
-          error: item.error
+          error: item.error,
+          notifyToast: shouldNotifyDownloadToast(item)
         };
         handleDelta(id, delta);
       }
@@ -159,7 +180,9 @@ function handleDelta(id, delta) {
 
   // Handle completion or failure
   if (item.state === 'complete' || item.state === 'interrupted') {
-    broadcastProgressToActiveTab(item, 'download-complete');
+    if (canBroadcastDownloadToast(item)) {
+      broadcastProgressToActiveTab(item, 'download-complete');
+    }
     delete activeDownloads[id];
     updateBadgeAndAnimation();
   } else {
@@ -167,7 +190,9 @@ function handleDelta(id, delta) {
     const now = Date.now();
     if (isCritical || !item.lastUpdateTime || (now - item.lastUpdateTime >= 1000)) {
       item.lastUpdateTime = now;
-      broadcastProgressToActiveTab(item, 'download-progress');
+      if (canBroadcastDownloadToast(item)) {
+        broadcastProgressToActiveTab(item, 'download-progress');
+      }
       updateBadgeAndAnimation();
     }
   }
@@ -417,7 +442,10 @@ function stopAnimation() {
 // Broadcast progress of all active downloads
 function broadcastProgress() {
   Object.keys(activeDownloads).forEach(id => {
-    broadcastProgressToActiveTab(activeDownloads[id], 'download-progress');
+    const item = activeDownloads[id];
+    if (canBroadcastDownloadToast(item)) {
+      broadcastProgressToActiveTab(item, 'download-progress');
+    }
   });
 }
 
@@ -457,7 +485,10 @@ function broadcastProgressToActiveTab(item, type = 'download-progress') {
 // Listen for tab switching to resume rendering on the newly active tab
 chrome.tabs.onActivated.addListener((activeInfo) => {
   Object.keys(activeDownloads).forEach(id => {
-    sendProgressToTab(activeInfo.tabId, activeDownloads[id], 'download-progress');
+    const item = activeDownloads[id];
+    if (canBroadcastDownloadToast(item)) {
+      sendProgressToTab(activeInfo.tabId, item, 'download-progress');
+    }
   });
 });
 
@@ -499,7 +530,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
       // Thêm hoặc cập nhật các tệp đang tải vào activeDownloads
       items.forEach(item => {
-        const lastTime = activeDownloads[item.id] ? activeDownloads[item.id].lastUpdateTime : null;
+        const currentItem = activeDownloads[item.id];
+        const lastTime = currentItem ? currentItem.lastUpdateTime : null;
+        const notifyToast = currentItem ? currentItem.notifyToast : shouldNotifyDownloadToast(item);
         activeDownloads[item.id] = {
           id: item.id,
           filename: getBasename(item.filename),
@@ -508,7 +541,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           state: item.state || 'in_progress',
           paused: item.paused || false,
           error: item.error || null,
-          lastUpdateTime: lastTime
+          lastUpdateTime: lastTime,
+          notifyToast: notifyToast
         };
         sessionDownloadIds.add(item.id);
       });
@@ -564,7 +598,8 @@ chrome.downloads.search({ state: 'in_progress' }, (items) => {
         bytesReceived: item.bytesReceived || 0,
         state: item.state || 'in_progress',
         paused: item.paused || false,
-        error: item.error || null
+        error: item.error || null,
+        notifyToast: shouldNotifyDownloadToast(item)
       };
       sessionDownloadIds.add(item.id);
     });
