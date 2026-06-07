@@ -4,6 +4,17 @@ Tài liệu này ghi lại toàn bộ lịch sử các phiên bản phát hành 
 
 ---
 
+### [v1.2.14] - 2026-06-07
+
+#### - **[Sửa lỗi]**
+- Tối ưu hóa CPU và giảm thiểu tải kết xuất đồ họa (render load) khi tải xuống tốc độ cao:
+  - **Popup.js**: Lọc sự kiện trong `chrome.downloads.onChanged.addListener`, chỉ gọi `loadDownloads()` (vẽ lại toàn bộ DOM và gọi lại API `getFileIcon` cho mọi tệp) khi có thay đổi trạng thái quan trọng (`state`, `paused`, `error`, `filename`, `exists`). Tránh triệt để việc vẽ lại danh sách tệp hàng chục lần mỗi giây khi có sự thay đổi tiến trình bytes. Việc cập nhật tiến trình trên giao diện Popup được duy trì mượt mà bởi polling in-place mỗi 2 giây.
+  - **Background.js**: Tích hợp cơ chế giới hạn tần suất cập nhật (Throttling) trong `handleDelta()`. Tiến trình tải thông thường (`bytesReceived` thay đổi) chỉ được phát sóng và cập nhật tối đa 1 giây một lần cho mỗi tệp. Các thay đổi trạng thái quan trọng vẫn được gửi ngay lập tức. Đồng thời, thuộc tính `lastUpdateTime` được lưu trực tiếp vào đối tượng `activeDownloads[id]` và tự động xóa bỏ khi tệp tải xong hoặc bị lỗi, giải quyết triệt để rủi ro rò rỉ bộ nhớ (memory leak).
+  - **Content.js**: Tái cấu trúc hàm hiển thị thông báo tải xuống `handleDownloadMessage()`. Thay vì gán đè chuỗi HTML lớn qua `innerHTML` liên tục cho mỗi tin nhắn cập nhật, content script sẽ khởi tạo cấu trúc khung một lần và cập nhật trực tiếp nội dung các nút text (`.status-text`, `.progress-percent`) cùng với việc vẽ vòng tròn tiến độ qua **`requestAnimationFrame`** để đồng bộ mượt mà với tần số quét của màn hình.
+
+#### - **[Cập nhật]**
+- Đồng bộ nâng phiên bản của cả hai tiện ích mở rộng lên `1.2.14` tại các tệp cấu hình `manifest.json`.
+
 ### [v1.2.13] - 2026-06-07
 
 #### - **[Thêm mới]**

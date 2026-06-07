@@ -6,6 +6,7 @@ let animationInterval = null;
 let isGlowState = false;
 let isCompleteState = false;
 let progressInterval = null;
+let completeIconImageDataCache = null; // Bộ đệm lưu trữ dữ liệu ảnh hoàn thành để tránh dựng lại Canvas liên tục
 
 // Theo dõi trạng thái đóng/mở của cửa sổ popup bằng cơ chế Port Connection
 chrome.runtime.onConnect.addListener((port) => {
@@ -90,6 +91,12 @@ function handleDelta(id, delta) {
     return;
   }
   
+  const isStateChange = delta.state !== undefined;
+  const isErrorChange = delta.error !== undefined;
+  const isPausedChange = delta.paused !== undefined;
+  const isFilenameChange = delta.filename !== undefined;
+  const isCritical = isStateChange || isErrorChange || isPausedChange || isFilenameChange;
+  
   if (delta.state) {
     item.state = delta.state.current;
   }
@@ -108,17 +115,22 @@ function handleDelta(id, delta) {
     item.paused = delta.paused.current;
   }
 
-  console.log(`[handleDelta] ID: ${id}, State: ${item.state}, Bytes: ${item.bytesReceived}/${item.totalBytes}`);
+  console.log(`[handleDelta] ID: ${id}, State: ${item.state}, Bytes: ${item.bytesReceived}/${item.totalBytes}, Critical: ${isCritical}`);
 
   // Handle completion or failure
   if (item.state === 'complete' || item.state === 'interrupted') {
     broadcastProgressToActiveTab(item, 'download-complete');
     delete activeDownloads[id];
+    updateBadgeAndAnimation();
   } else {
-    broadcastProgressToActiveTab(item, 'download-progress');
+    // Chỉ cập nhật tiến trình nếu là thay đổi trạng thái quan trọng hoặc đã trôi qua ít nhất 1000ms
+    const now = Date.now();
+    if (isCritical || !item.lastUpdateTime || (now - item.lastUpdateTime >= 1000)) {
+      item.lastUpdateTime = now;
+      broadcastProgressToActiveTab(item, 'download-progress');
+      updateBadgeAndAnimation();
+    }
   }
-
-  updateBadgeAndAnimation();
 }
 
 // Cập nhật badge tiến độ tải xuống và hiệu ứng nhấp nháy từ dữ liệu in-memory activeDownloads
@@ -249,6 +261,11 @@ async function closeOffscreenDocument() {
 // Vẽ biểu tượng hoàn thành với vòng tròn màu xanh lá và dấu checkmark trắng nhỏ sắc nét
 async function drawCompleteIcon() {
   try {
+    if (completeIconImageDataCache) {
+      await chrome.action.setIcon({ imageData: completeIconImageDataCache });
+      return;
+    }
+
     const sizes = [16, 32, 48];
     const imageDatas = {};
 
@@ -299,6 +316,7 @@ async function drawCompleteIcon() {
       imageDatas[size] = ctx.getImageData(0, 0, size, size);
     }
 
+    completeIconImageDataCache = imageDatas; // Lưu lại bộ đệm
     await chrome.action.setIcon({ imageData: imageDatas });
   } catch (err) {
     console.error("Lỗi khi vẽ biểu tượng hoàn thành:", err);
@@ -431,6 +449,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
       // Thêm hoặc cập nhật các tệp đang tải vào activeDownloads
       items.forEach(item => {
+        const lastTime = activeDownloads[item.id] ? activeDownloads[item.id].lastUpdateTime : null;
         activeDownloads[item.id] = {
           id: item.id,
           filename: getBasename(item.filename),
@@ -438,7 +457,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           bytesReceived: item.bytesReceived || 0,
           state: item.state || 'in_progress',
           paused: item.paused || false,
-          error: item.error || null
+          error: item.error || null,
+          lastUpdateTime: lastTime
         };
         sessionDownloadIds.add(item.id);
       });

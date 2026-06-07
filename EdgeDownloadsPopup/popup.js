@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   let searchTimeout = null;
   let forceShowAll = false;
+  const iconCache = new Map(); // Bộ đệm lưu trữ icon của tệp để tránh gọi API getFileIcon liên tục
 
   // Kết nối tới background để báo hiệu popup đang mở
   chrome.runtime.connect({ name: 'popup' });
@@ -36,9 +37,12 @@ document.addEventListener('DOMContentLoaded', function () {
     loadDownloads();
   });
 
-  chrome.downloads.onChanged.addListener(() => {
-    // Throttle or just reload downloads to get updated states
-    loadDownloads();
+  chrome.downloads.onChanged.addListener((delta) => {
+    // Chỉ tải lại toàn bộ danh sách khi có sự thay đổi về trạng thái quan trọng (state, paused, error, filename, exists)
+    const hasCriticalChange = delta.state || delta.paused || delta.error || delta.filename || delta.exists;
+    if (hasCriticalChange) {
+      loadDownloads();
+    }
   });
 
   // Action Buttons
@@ -168,12 +172,9 @@ document.addEventListener('DOMContentLoaded', function () {
     iconDiv.className = 'file-icon';
     iconDiv.innerHTML = getFileIconSVG(ext, isRemoved);
 
-    // Fetch native file icon from OS/Chrome
-    chrome.downloads.getFileIcon(item.id, { size: 32 }, (iconUrl) => {
-      // Clear runtime lastError if file doesn't exist to avoid console errors
-      if (chrome.runtime.lastError) {
-        return;
-      }
+    // Sử dụng bộ đệm iconCache nếu đã được tải để tránh gọi getFileIcon liên tục (tối ưu hóa tài nguyên OS)
+    if (iconCache.has(item.id)) {
+      const iconUrl = iconCache.get(item.id);
       if (iconUrl) {
         const img = document.createElement('img');
         img.src = iconUrl;
@@ -184,7 +185,26 @@ document.addEventListener('DOMContentLoaded', function () {
         iconDiv.innerHTML = '';
         iconDiv.appendChild(img);
       }
-    });
+    } else {
+      // Fetch native file icon from OS/Chrome
+      chrome.downloads.getFileIcon(item.id, { size: 32 }, (iconUrl) => {
+        // Clear runtime lastError if file doesn't exist to avoid console errors
+        if (chrome.runtime.lastError) {
+          return;
+        }
+        if (iconUrl) {
+          iconCache.set(item.id, iconUrl); // Lưu vào bộ đệm
+          const img = document.createElement('img');
+          img.src = iconUrl;
+          img.alt = ext;
+          if (isRemoved) {
+            img.style.opacity = '0.4';
+          }
+          iconDiv.innerHTML = '';
+          iconDiv.appendChild(img);
+        }
+      });
+    }
 
     // Content container
     const contentDiv = document.createElement('div');

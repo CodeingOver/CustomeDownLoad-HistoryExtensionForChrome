@@ -33,13 +33,6 @@ function handleDownloadMessage(type, item) {
   const cardId = `download-card-${item.id}`;
   let card = shadowHost.shadowRoot.getElementById(cardId);
 
-  if (!card) {
-    card = document.createElement('div');
-    card.id = cardId;
-    card.className = 'download-toast-card';
-    container.appendChild(card);
-  }
-
   const percent = item.totalBytes > 0 ? Math.floor((item.bytesReceived / item.totalBytes) * 100) : 0;
   const isComplete = type === 'download-complete' || item.state === 'complete';
   const isInterrupted = item.state === 'interrupted';
@@ -55,24 +48,50 @@ function handleDownloadMessage(type, item) {
       : `${formatBytes(item.bytesReceived)}`;
   }
 
-  // Set card contents
-  card.innerHTML = `
-    <div class="card-body">
-      <div class="card-icon">
-        <svg viewBox="0 0 24 24" width="24" height="24">
-          <path d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2v9.67z" fill="#ffffff"/>
-        </svg>
+  if (!card) {
+    card = document.createElement('div');
+    card.id = cardId;
+    card.className = 'download-toast-card';
+    container.appendChild(card);
+    
+    // Khởi tạo bộ khung HTML cho card một lần duy nhất
+    card.innerHTML = `
+      <div class="card-body">
+        <div class="card-icon">
+          <svg viewBox="0 0 24 24" width="24" height="24">
+            <path d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2v9.67z" fill="#ffffff"/>
+          </svg>
+        </div>
+        <div class="card-details">
+          <div class="filename" title="${escapeHtml(item.filename)}">${escapeHtml(item.filename)}</div>
+          <div class="status-text">${stateText}</div>
+        </div>
+        <div class="card-action"></div>
       </div>
-      <div class="card-details">
-        <div class="filename" title="${escapeHtml(item.filename)}">${escapeHtml(item.filename)}</div>
-        <div class="status-text">${stateText}</div>
-      </div>
-      <div class="card-action">
-        ${isComplete ? `
-          <button class="open-btn" title="Open file">Open</button>
-        ` : isInterrupted ? `
-          <span class="error-indicator">✕</span>
-        ` : `
+    `;
+  } else {
+    // Cập nhật text trạng thái nếu card đã tồn tại
+    const statusTextEl = card.querySelector('.status-text');
+    if (statusTextEl && statusTextEl.textContent !== stateText) {
+      statusTextEl.textContent = stateText;
+    }
+  }
+
+  const actionContainer = card.querySelector('.card-action');
+  if (actionContainer) {
+    if (isComplete) {
+      if (!actionContainer.querySelector('.open-btn')) {
+        actionContainer.innerHTML = `<button class="open-btn" title="Open file">Open</button>`;
+      }
+    } else if (isInterrupted) {
+      if (!actionContainer.querySelector('.error-indicator')) {
+        actionContainer.innerHTML = `<span class="error-indicator">✕</span>`;
+      }
+    } else {
+      // Đang tải: cập nhật phần trăm và vòng tròn tiến trình tại chỗ
+      let progressContainer = actionContainer.querySelector('.progress-container');
+      if (!progressContainer) {
+        actionContainer.innerHTML = `
           <div class="progress-container">
             <svg class="progress-ring" width="32" height="32">
               <circle class="progress-ring-bg" stroke="rgba(255, 255, 255, 0.1)" stroke-width="3" fill="transparent" r="13" cx="16" cy="16"/>
@@ -80,20 +99,29 @@ function handleDownloadMessage(type, item) {
             </svg>
             <span class="progress-percent">${percent}%</span>
           </div>
-        `}
-      </div>
-    </div>
-  `;
+        `;
+        progressContainer = actionContainer.querySelector('.progress-container');
+      } else {
+        const percentEl = progressContainer.querySelector('.progress-percent');
+        if (percentEl && percentEl.textContent !== `${percent}%`) {
+          percentEl.textContent = `${percent}%`;
+        }
+      }
 
-  // Draw circular progress ring
-  if (!isComplete && !isInterrupted) {
-    const ring = card.querySelector('.progress-ring-fill');
-    if (ring) {
-      const radius = 13;
-      const circumference = 2 * Math.PI * radius;
-      ring.style.strokeDasharray = `${circumference} ${circumference}`;
-      const offset = circumference - (percent / 100) * circumference;
-      ring.style.strokeDashoffset = offset;
+      // Cập nhật vòng tròn tiến độ bằng requestAnimationFrame cho cực kỳ mượt mà
+      const ring = progressContainer.querySelector('.progress-ring-fill');
+      if (ring) {
+        const radius = 13;
+        const circumference = 2 * Math.PI * radius;
+        ring.style.strokeDasharray = `${circumference} ${circumference}`;
+        const offset = circumference - (percent / 100) * circumference;
+        
+        requestAnimationFrame(() => {
+          if (ring.parentNode) {
+            ring.style.strokeDashoffset = offset;
+          }
+        });
+      }
     }
   }
 
