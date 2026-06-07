@@ -4,6 +4,28 @@ Tài liệu này ghi lại toàn bộ lịch sử các phiên bản phát hành 
 
 ---
 
+### [v1.1.5] - 2026-06-07
+
+#### - **[Sửa lỗi]**
+- Khắc phục lỗi biểu tượng hiển thị quá nhỏ trên thanh công cụ so với các tiện ích của Google:
+  - Bản chất là do khi mở trực tiếp file SVG để chụp ảnh màn hình bằng Chrome Headless, trình duyệt áp dụng lề (`margin: 8px`) mặc định của thẻ `body` khiến vùng vẽ SVG bị co cụm thu nhỏ lại, tạo nhiều khoảng trống trong suốt thừa thãi xung quanh biểu tượng.
+  - Giải quyết bằng cách tạo trình bao HTML tạm thời với thuộc tính CSS loại bỏ lề (`margin: 0`), đệm (`padding: 0`), ẩn thanh cuộn (`overflow: hidden`) và thiết lập kích thước SVG lấp đầy 100% viewport trước khi chụp ảnh màn hình.
+  - Kết xuất lại 4 kích cỡ PNG trong suốt của biểu tượng trắng sáng, đảm bảo biểu tượng căng đầy khung hình và có kích thước hiển thị lớn tương đương 100% các biểu tượng của Google.
+  - Đồng bộ nâng phiên bản của cả hai tiện ích lên `1.1.5` tại các tệp `manifest.json`.
+
+---
+
+### [v1.1.4] - 2026-06-07
+
+#### - **[Cập nhật]**
+- Chuyển màu sắc các biểu tượng tiện ích mở rộng sang màu sáng/trắng (giống Google/Edge gốc) để hiển thị nổi bật và rõ nét trên cả thanh công cụ (toolbar) chủ đề tối và sáng của trình duyệt:
+  - Khôi phục tệp thiết kế vector gốc `icon.svg` của cả `EdgeHistoryPopup` và `EdgeDownloadsPopup`.
+  - Thay đổi màu sắc đường nét và mảng tô (`fill`) trong file `icon.svg` từ màu tối (`#212121`) sang màu trắng sáng (`#ffffff`).
+  - Dùng Chrome Headless kết xuất lại hoàn toàn 4 kích cỡ ảnh biểu tượng PNG trong suốt tiêu chuẩn (`icon16.png`, `icon32.png`, `icon48.png`, `icon128.png`) từ file SVG đã chuyển màu trắng.
+  - Đồng bộ nâng phiên bản của cả hai tiện ích lên `1.1.4` tại các tệp `manifest.json`.
+
+---
+
 ### [v1.1.3] - 2026-06-07
 
 #### - **[Cập nhật]**
