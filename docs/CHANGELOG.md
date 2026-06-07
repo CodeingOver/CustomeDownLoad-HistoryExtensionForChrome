@@ -21,6 +21,10 @@ Tài liệu này ghi lại toàn bộ lịch sử các phiên bản phát hành 
 - Tối ưu hóa hiệu năng và giảm tải CPU trong suốt quá trình tải xuống:
   - Giảm tần suất nhịp tim trong [offscreen.js](file:///d:/CodePython/CustomeExtensionForChrome/EdgeDownloadsPopup/offscreen.js) và polling cập nhật giao diện trong [popup.js](file:///d:/CodePython/CustomeExtensionForChrome/EdgeDownloadsPopup/popup.js) từ 1 giây thành 2 giây (2000ms), giúp giảm một nửa (50%) số lượng lời gọi API và cập nhật DOM.
   - Tăng khoảng thời gian hoạt ảnh nhấp nháy phát sáng biểu tượng tiện ích từ 800ms lên 1.5 giây (1500ms) trong [background.js](file:///d:/CodePython/CustomeExtensionForChrome/EdgeDownloadsPopup/background.js) giúp icon chuyển đổi chậm rãi tinh tế hơn, đồng thời hạn chế tối đa việc trình duyệt liên tục nạp lại file ảnh giúp tiết kiệm CPU đáng kể.
+- Tối ưu hóa hiệu năng vượt trội cho tiện ích Lịch sử **EdgeHistoryPopup**:
+  - Tránh nghẽn hiệu năng vẽ (layout thrashing) bằng cách áp dụng **Throttling** thông qua `requestAnimationFrame` cho sự kiện lắng nghe cuộn trang (`scroll`) trong [popup.js](file:///d:/CodePython/CustomeExtensionForChrome/EdgeHistoryPopup/popup.js), kiểm soát tần suất kiểm tra cuộn tải trang tiếp theo khớp với nhịp làm tươi của màn hình.
+  - Sử dụng cấu trúc dữ liệu **Set bộ nhớ đệm in-memory** (`renderedItems`) trong [popup.js](file:///d:/CodePython/CustomeExtensionForChrome/EdgeHistoryPopup/popup.js) để kiểm tra phần tử trùng lặp với độ phức tạp $O(1)$ thay vì thực hiện hàng chục truy vấn DOM (`querySelector` và `querySelectorAll`) lặp đi lặp lại trong vòng lặp lọc dữ liệu lịch sử.
+  - Tối ưu hóa bộ nhớ và giảm tải dọn rác (GC overhead) bằng cách khởi tạo duy nhất một cặp đối tượng Date (`today` và `yesterday`) từ ngoài vòng lặp gom nhóm lịch sử và tái sử dụng chúng, tránh khởi tạo hàng trăm đối tượng thừa thãi.
 
 #### - **[Cập nhật]**
 - Cấu hình quyền `"offscreen"` trong tệp [manifest.json (Downloads)](file:///d:/CodePython/CustomeExtensionForChrome/EdgeDownloadsPopup/manifest.json).

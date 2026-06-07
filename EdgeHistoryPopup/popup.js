@@ -19,6 +19,7 @@ document.addEventListener('DOMContentLoaded', function () {
   let isLoading = false;
   let hasMore = true;
   const PAGE_SIZE = 50;
+  const renderedItems = new Set(); // Bộ đệm in-memory kiểm tra trùng lặp cực nhanh
 
   // Initial load
   loadActiveTab();
@@ -33,14 +34,20 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   });
 
-  // Scroll to load more history
+  // Scroll to load more history với cơ chế throttling requestAnimationFrame để tránh giật lag
+  let scrollScheduled = false;
   listWrapper.addEventListener('scroll', () => {
-    if (activeTabId === 'tab-all') {
-      const threshold = 30;
-      if (listWrapper.scrollTop + listWrapper.clientHeight >= listWrapper.scrollHeight - threshold) {
-        fetchHistory(searchInput.value, true);
+    if (scrollScheduled) return;
+    scrollScheduled = true;
+    requestAnimationFrame(() => {
+      scrollScheduled = false;
+      if (activeTabId === 'tab-all') {
+        const threshold = 30;
+        if (listWrapper.scrollTop + listWrapper.clientHeight >= listWrapper.scrollHeight - threshold) {
+          fetchHistory(searchInput.value, true);
+        }
       }
-    }
+    });
   });
 
   // Action Buttons
@@ -97,6 +104,7 @@ document.addEventListener('DOMContentLoaded', function () {
   // Main Loader
   function loadActiveTab(query = '') {
     list.innerHTML = '';
+    renderedItems.clear(); // Xóa bộ đệm các tệp đã vẽ
     emptyState.classList.add('hidden');
     oldestTimestamp = null;
     isLoading = false;
@@ -144,10 +152,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
   function groupHistoryItems(items) {
     const groups = {};
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
 
     items.forEach(item => {
       const date = new Date(item.lastVisitTime);
-      const groupName = formatDateHeader(date);
+      const groupName = formatDateHeader(date, today, yesterday);
 
       if (!groups[groupName]) {
         groups[groupName] = [];
@@ -167,18 +178,10 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     groupNames.forEach(name => {
-      // Filter out duplicate items first
+      // Lọc các phần tử trùng lặp bằng Set renderedItems (đã tối ưu hiệu năng O(1) in-memory)
       const uniqueItems = groups[name].filter(item => {
-        const existing = list.querySelector(`.history-item[data-url="${CSS.escape(item.url)}"]`);
-        if (existing) {
-          const itemsWithSameUrl = list.querySelectorAll(`.history-item[data-url="${CSS.escape(item.url)}"]`);
-          for (let row of itemsWithSameUrl) {
-            if (row.dataset.time == item.lastVisitTime) {
-              return false; // duplicate
-            }
-          }
-        }
-        return true;
+        const key = `${item.url}_${item.lastVisitTime}`;
+        return !renderedItems.has(key);
       });
 
       // If no unique items in this group, do not render group header or items
@@ -211,6 +214,9 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   function createHistoryItemRow(item) {
+    const key = `${item.url}_${item.lastVisitTime}`;
+    renderedItems.add(key);
+
     const li = document.createElement('li');
     li.className = 'history-item';
     li.dataset.url = item.url;
@@ -262,6 +268,7 @@ document.addEventListener('DOMContentLoaded', function () {
         li.style.transition = 'opacity 0.2s, transform 0.2s';
         setTimeout(() => {
           li.remove();
+          renderedItems.delete(key); // Dọn dẹp key khỏi bộ đệm
           // Check if group has items, if not, remove header
           checkAndCleanHeaders();
         }, 200);
@@ -418,7 +425,7 @@ document.addEventListener('DOMContentLoaded', function () {
     return `${hours}:${minutesStr} ${ampm}`;
   }
 
-  function formatDateHeader(date) {
+  function formatDateHeader(date, today, yesterday) {
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
@@ -426,10 +433,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const monthName = months[date.getMonth()];
     const dayNum = date.getDate();
     const year = date.getFullYear();
-
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
 
     if (date.toDateString() === today.toDateString()) {
       return `Today - ${dayName}, ${monthName} ${dayNum}, ${year}`;
