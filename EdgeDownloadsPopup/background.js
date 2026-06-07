@@ -4,6 +4,7 @@ let wasDownloading = false;
 let isPopupOpen = false;
 let animationInterval = null;
 let isGlowState = false;
+let isCompleteState = false;
 
 // Theo dõi trạng thái đóng/mở của cửa sổ popup bằng cơ chế Port Connection
 chrome.runtime.onConnect.addListener((port) => {
@@ -51,6 +52,10 @@ chrome.downloads.onCreated.addListener((item) => {
 
 // Listen for changes in downloads
 chrome.downloads.onChanged.addListener((delta) => {
+  // Đảm bảo vô hiệu hóa bong bóng tải mặc định của Chrome trong suốt tiến trình thay đổi
+  if (chrome.downloads.setUiOptions) {
+    chrome.downloads.setUiOptions({ enabled: false });
+  }
   sessionDownloadIds.add(delta.id);
   const id = delta.id;
   if (!activeDownloads[id]) {
@@ -105,6 +110,10 @@ function handleDelta(id, delta) {
 }
 
 // Cập nhật badge tiến độ tải xuống và hiệu ứng nhấp nháy từ dữ liệu gốc của trình duyệt
+/********************************************************************************
+ * SỬA ĐỔI CHÍNH: Thay đổi checkmark Unicode to bằng biểu tượng checkmark nhỏ gọn *
+ * vẽ động bằng OffscreenCanvas để tối ưu hóa thiết kế.                          *
+ ********************************************************************************/
 function updateBadgeAndAnimation() {
   chrome.downloads.search({ state: 'in_progress' }, (items) => {
     // Lọc bằng sessionDownloadIds để chỉ tính toán tiến trình cho các tệp đang tải trong phiên hiện tại
@@ -121,25 +130,28 @@ function updateBadgeAndAnimation() {
 
     if (activeItems.length === 0) {
       if (wasDownloading) {
-        // Vừa tải xong: hiển thị Badge checkmark màu xanh lá cây (chỉ hiển thị nếu popup không mở)
+        // Vừa tải xong: hiển thị Icon hoàn thành với checkmark (chỉ hiển thị nếu popup không mở)
         if (!isPopupOpen) {
           showCompletionBadge();
+        } else {
+          isCompleteState = false;
+          stopAnimation();
         }
         wasDownloading = false;
       } else {
-        // Kiểm tra để không xóa nhầm Badge checkmark đang hiển thị
-        chrome.action.getBadgeText({}, (text) => {
-          if (text !== '✓' && text !== '✔') {
-            chrome.action.setBadgeText({ text: '' });
-          }
-        });
+        // Kiểm tra để không xóa nhầm Icon checkmark đang hiển thị
+        if (!isCompleteState) {
+          chrome.action.setBadgeText({ text: '' });
+          stopAnimation();
+        }
       }
-      stopAnimation();
+      clearProgressAnimation();
       return;
     }
 
-    // Đang tải: đặt flag wasDownloading = true
+    // Đang tải: đặt flag wasDownloading = true và reset trạng thái hoàn tất
     wasDownloading = true;
+    isCompleteState = false;
     startAnimation();
 
     let totalBytes = 0;
@@ -167,10 +179,73 @@ function updateBadgeAndAnimation() {
   });
 }
 
+// Vẽ biểu tượng hoàn thành với vòng tròn màu xanh lá và dấu checkmark trắng nhỏ sắc nét
+async function drawCompleteIcon() {
+  try {
+    const sizes = [16, 32, 48];
+    const imageDatas = {};
+
+    for (const size of sizes) {
+      const response = await fetch(chrome.runtime.getURL(`icon${size}.png`));
+      const blob = await response.blob();
+      const bitmap = await createImageBitmap(blob);
+
+      const canvas = new OffscreenCanvas(size, size);
+      const ctx = canvas.getContext('2d');
+
+      // Vẽ icon gốc
+      ctx.drawImage(bitmap, 0, 0);
+      bitmap.close();
+
+      // Tính toán kích thước và vị trí của badge xanh lá cây
+      // Phù hợp hoàn hảo với góc dưới bên phải
+      const radius = size * 0.22; // Ví dụ: 3.5 cho 16, 7 cho 32, 10.5 cho 48
+      const cx = size - radius - 1;
+      const cy = size - radius - 1;
+
+      // Vẽ hình tròn màu xanh lá (#10c15c)
+      ctx.fillStyle = '#10c15c';
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, 2 * Math.PI);
+      ctx.fill();
+
+      // Vẽ dấu checkmark trắng mảnh
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = size >= 32 ? 1.5 : 1.0;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+
+      // Tọa độ tương đối của checkmark dựa trên tâm cx, cy và radius
+      const startX = cx - radius * 0.45;
+      const startY = cy;
+      const midX = cx - radius * 0.1;
+      const midY = cy + radius * 0.35;
+      const endX = cx + radius * 0.45;
+      const endY = cy - radius * 0.25;
+
+      ctx.moveTo(startX, startY);
+      ctx.lineTo(midX, midY);
+      ctx.lineTo(endX, endY);
+      ctx.stroke();
+
+      imageDatas[size] = ctx.getImageData(0, 0, size, size);
+    }
+
+    await chrome.action.setIcon({ imageData: imageDatas });
+  } catch (err) {
+    console.error("Lỗi khi vẽ biểu tượng hoàn thành:", err);
+    // Phương án dự phòng: Sử dụng badge text chứa dấu checkmark nhạt ✓
+    chrome.action.setBadgeBackgroundColor({ color: '#10c15c' });
+    chrome.action.setBadgeText({ text: '✓' });
+  }
+}
+
 // Hiển thị Badge checkmark xanh lá cây sáng nổi bật khi hoàn thành tải xuống
 function showCompletionBadge() {
-  chrome.action.setBadgeBackgroundColor({ color: '#10c15c' });
-  chrome.action.setBadgeText({ text: '✔' });
+  isCompleteState = true;
+  chrome.action.setBadgeText({ text: '' }); // Xóa badge text tiến trình cũ
+  drawCompleteIcon();
 }
 
 // Khởi chạy hoạt ảnh biểu tượng nhấp nháy phát sáng (Glow)
@@ -193,13 +268,18 @@ function startAnimation() {
   }, 800);
 }
 
-// Dừng hoạt ảnh nhấp nháy và khôi phục biểu tượng mặc định
-function stopAnimation() {
+// Chỉ xóa bỏ interval hoạt ảnh tiến trình mà không ghi đè biểu tượng
+function clearProgressAnimation() {
   if (animationInterval) {
     clearInterval(animationInterval);
     animationInterval = null;
   }
   isGlowState = false;
+}
+
+// Dừng hoạt ảnh nhấp nháy và khôi phục biểu tượng mặc định
+function stopAnimation() {
+  clearProgressAnimation();
   chrome.action.setIcon({
     path: {
       "16": "icon16.png",
@@ -253,11 +333,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   } else if (request.action === 'get-session-downloads') {
     sendResponse({ sessionDownloadIds: Array.from(sessionDownloadIds) });
   } else if (request.action === 'clear-complete-badge') {
-    chrome.action.getBadgeText({}, (text) => {
-      if (text === '✓' || text === '✔') {
-        chrome.action.setBadgeText({ text: '' });
-      }
-    });
+    isCompleteState = false;
+    chrome.action.setBadgeText({ text: '' });
+    stopAnimation(); // Khôi phục biểu tượng mặc định
   }
   return true;
 });
@@ -268,6 +346,19 @@ function getBasename(path) {
   const parts = path.split(/[/\\]/);
   return parts[parts.length - 1];
 }
+
+// Đăng ký các sự kiện lifecycle của extension để ẩn download UI mặc định càng sớm càng tốt
+chrome.runtime.onInstalled.addListener(() => {
+  if (chrome.downloads.setUiOptions) {
+    chrome.downloads.setUiOptions({ enabled: false });
+  }
+});
+
+chrome.runtime.onStartup.addListener(() => {
+  if (chrome.downloads.setUiOptions) {
+    chrome.downloads.setUiOptions({ enabled: false });
+  }
+});
 
 // Đồng bộ trạng thái Badge và hoạt ảnh ngay khi Service Worker khởi động
 updateBadgeAndAnimation();

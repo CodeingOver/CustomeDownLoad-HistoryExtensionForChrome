@@ -4,6 +4,20 @@ Tài liệu này ghi lại toàn bộ lịch sử các phiên bản phát hành 
 
 ---
 
+### [v1.2.9] - 2026-06-07
+
+#### - **[Sửa lỗi]**
+- Tối ưu hóa kích thước checkmark hoàn thành tải xuống:
+  - Sử dụng Canvas vẽ động qua `OffscreenCanvas` trực tiếp trong Service Worker để tạo badge checkmark nhỏ gọn, sắc nét chuẩn Fluent ở mọi kích cỡ (16x16, 32x32, 48x48), loại bỏ hoàn toàn vấn đề ký tự Unicode `✔` bị Windows tự động kết xuất thành emoji màu tím quá to và lệch vị trí.
+- Khắc phục cơ chế xóa tệp không cần tải lại toàn bộ danh sách:
+  - Cập nhật logic trong [popup.js](file:///d:/CodePython/CustomeExtensionForChrome/EdgeDownloadsPopup/popup.js): khi xóa tệp thành công, trạng thái được thay đổi trực tiếp trên đối tượng `item` và cập nhật hàng tương ứng trong danh sách bằng phương thức DOM `replaceWith()` thay vì gọi trực tiếp hàm `loadDownloads()`.
+
+#### - **[Cập nhật]**
+- Tăng cường khả năng ẩn UI tải xuống mặc định của Chrome bằng cách đăng ký gọi `chrome.downloads.setUiOptions({ enabled: false })` trong các sự kiện vòng đời `chrome.runtime.onInstalled`, `chrome.runtime.onStartup` và cả sự kiện `chrome.downloads.onChanged`.
+- Nâng cấp đồng bộ phiên bản của cả hai tiện ích mở rộng lên `1.2.9` tại các tệp cấu hình `manifest.json`.
+
+---
+
 ### [v1.2.8] - 2026-06-07
 
 #### - **[Sửa lỗi]**

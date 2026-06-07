@@ -317,11 +317,22 @@ document.addEventListener('DOMContentLoaded', function () {
           if (chrome.runtime.lastError) {
             // Fallback to erase if removing file fails
             chrome.downloads.erase({ id: item.id }, () => {
-              loadDownloads();
+              // Fade out animation
+              li.style.opacity = '0';
+              li.style.transform = 'translateX(-10px)';
+              li.style.transition = 'opacity 0.2s, transform 0.2s';
+              setTimeout(() => {
+                li.remove();
+                if (list.querySelectorAll('.download-item').length === 0) {
+                  emptyState.classList.remove('hidden');
+                }
+              }, 200);
             });
           } else {
-            // Success: reload downloads list to update UI to "Removed" state
-            loadDownloads();
+            // Success: update the item state to exists = false, and re-render the row
+            item.exists = false;
+            const newLi = createDownloadRow(item);
+            li.replaceWith(newLi);
           }
         });
       });
