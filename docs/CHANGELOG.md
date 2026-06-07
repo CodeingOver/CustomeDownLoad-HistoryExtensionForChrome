@@ -4,6 +4,49 @@ Tài liệu này ghi lại toàn bộ lịch sử các phiên bản phát hành 
 
 ---
 
+### [v1.2.13] - 2026-06-07
+
+#### - **[Thêm mới]**
+- Khởi tạo tài liệu ẩn (Offscreen Document) qua [offscreen.html](file:///d:/CodePython/CustomeExtensionForChrome/EdgeDownloadsPopup/offscreen.html) và [offscreen.js](file:///d:/CodePython/CustomeExtensionForChrome/EdgeDownloadsPopup/offscreen.js) nhằm đảm bảo vòng lặp polling tiến độ chạy ngầm ổn định mà không bị dừng đột ngột.
+
+#### - **[Sửa lỗi]**
+- Khắc phục hoàn toàn lỗi mất hiển thị phần trăm (%) tiến trình tải xuống trên biểu tượng tiện ích (badge) khi Service Worker ngủ đông:
+  - Loại bỏ cơ chế polling không hoạt động bằng `setInterval` trực tiếp trong Service Worker [background.js](file:///d:/CodePython/CustomeExtensionForChrome/EdgeDownloadsPopup/background.js).
+  - Sử dụng cơ chế gọi `ensureOffscreenDocument()` và `closeOffscreenDocument()` để tự động kích hoạt tài liệu ẩn khi có lượt tải và đóng lại ngay khi hoàn thành để tiết kiệm năng lượng.
+  - Nhận tin nhắn `'polling-tick'` (nhịp tim) định kỳ từ Offscreen Document để đánh thức Service Worker, giúp Service Worker tự truy vấn dữ liệu tiến độ thực tế và cập nhật chỉ số phần trăm chính xác trên badge của thanh công cụ.
+- Sửa lỗi tiến độ tải tại giao diện popup không cập nhật thời gian thực:
+  - Bổ sung cơ chế polling trực tiếp tại chỗ (in-place) mỗi 1 giây trong [popup.js](file:///d:/CodePython/CustomeExtensionForChrome/EdgeDownloadsPopup/popup.js), trực tiếp thay đổi thanh tiến trình (`width`) và nhãn phần trăm hiển thị của các thẻ `li` đang tải mà không cần vẽ lại toàn bộ danh sách, đem lại trải nghiệm mượt mà không bị chớp nháy.
+
+#### - **[Cập nhật]**
+- Cấu hình quyền `"offscreen"` trong tệp [manifest.json (Downloads)](file:///d:/CodePython/CustomeExtensionForChrome/EdgeDownloadsPopup/manifest.json).
+- Đồng bộ nâng phiên bản của cả hai tiện ích mở rộng lên `1.2.13` tại các tệp `manifest.json`.
+
+### [v1.2.12] - 2026-06-07
+
+#### - **[Sửa lỗi]**
+- Bổ sung cơ chế tự bảo vệ và ghi nhật ký gỡ lỗi (defensive check and debug logs):
+  - Thêm kiểm tra an toàn `if (!item) return;` vào đầu hàm xử lý thay đổi tệp tin `handleDelta()` trong [background.js](file:///d:/CodePython/CustomeExtensionForChrome/EdgeDownloadsPopup/background.js) nhằm ngăn chặn triệt để nguy cơ Service Worker bị sập (crash) do các lỗi bất đồng bộ khi cập nhật các tệp tin đã hoàn thành hoặc bị xóa.
+  - Bổ sung các lệnh `console.log` chi tiết tại các sự kiện `handleDelta` và `updateBadgeAndAnimation` để dễ dàng theo dõi và gỡ lỗi hiển thị phần trăm badge khi cần thiết.
+
+#### - **[Cập nhật]**
+- Đồng bộ nâng phiên bản của cả hai tiện ích mở rộng lên `1.2.12` tại các tệp `manifest.json`.
+
+---
+
+### [v1.2.11] - 2026-06-07
+
+#### - **[Sửa lỗi]**
+- Khắc phục lỗi hiển thị phần trăm và hoạt ảnh tải xuống khi tải nhiều file đồng thời:
+  - Đồng bộ hóa logic cập nhật badge phần trăm tải và kiểm soát trạng thái hoạt ảnh thông qua biến lưu trữ đồng bộ in-memory `activeDownloads` thay vì gọi API tìm kiếm không đồng bộ `chrome.downloads.search({ state: 'in_progress' })` vốn bị trễ nhịp cơ sở dữ liệu (race conditions).
+  - Giúp loại bỏ hiện tượng khi 1 file tải xong thì phần trăm trên badge bị giật lùi về tiến trình của file còn lại hoặc bị mất hoạt ảnh nhấp nháy dù vẫn còn file đang tải.
+  - Bổ sung theo dõi thuộc tính tạm dừng (`paused`) trực tiếp trong bộ nhớ `activeDownloads`.
+  - Khởi tạo nạp danh sách các file đang tải từ trình duyệt ngay khi Service Worker khởi động, đưa thông tin vào `activeDownloads` và `sessionDownloadIds` để duy trì chính xác giao diện popup và biểu tượng thanh công cụ khi extension tải lại.
+
+#### - **[Cập nhật]**
+- Đồng bộ nâng phiên bản của cả hai tiện ích mở rộng lên `1.2.11` tại các tệp `manifest.json`.
+
+---
+
 ### [v1.2.10] - 2026-06-07
 
 #### - **[Sửa lỗi]**

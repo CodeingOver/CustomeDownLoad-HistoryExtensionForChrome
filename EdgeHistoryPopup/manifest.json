@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Edge History",
-  "version": "1.2.10",
+  "version": "1.2.13",
   "description": "Popup xem lịch sử thiết kế Fluent phong cách Edge",
   "permissions": [
     "history",

@@ -389,4 +389,39 @@ document.addEventListener('DOMContentLoaded', function () {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
   }
+
+  // Polling mượt mà thời gian thực khi popup đang mở
+  const progressInterval = setInterval(() => {
+    chrome.downloads.search({ state: 'in_progress' }, (items) => {
+      if (!items || items.length === 0) {
+        return;
+      }
+      items.forEach(item => {
+        const row = list.querySelector(`.download-item[data-id="${item.id}"]`);
+        if (row) {
+          const received = item.bytesReceived;
+          const total = item.totalBytes;
+          const pct = total > 0 ? Math.round((received / total) * 100) : 0;
+          const sizeStr = formatBytes(received) + (total > 0 ? ` of ${formatBytes(total)}` : '');
+          
+          // Cập nhật nhãn phần trăm và dung lượng
+          const statusLabel = row.querySelector('.status-label');
+          if (statusLabel) {
+            statusLabel.textContent = `${pct}% - ${sizeStr}`;
+          }
+          
+          // Cập nhật thanh tiến trình
+          const fill = row.querySelector('.progress-bar-fill');
+          if (fill) {
+            fill.style.width = `${pct}%`;
+          }
+        }
+      });
+    });
+  }, 1000);
+
+  // Dọn dẹp interval khi popup đóng
+  window.addEventListener('unload', () => {
+    clearInterval(progressInterval);
+  });
 });

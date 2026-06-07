@@ -5,6 +5,7 @@ let isPopupOpen = false;
 let animationInterval = null;
 let isGlowState = false;
 let isCompleteState = false;
+let progressInterval = null;
 
 // Theo dõi trạng thái đóng/mở của cửa sổ popup bằng cơ chế Port Connection
 chrome.runtime.onConnect.addListener((port) => {
@@ -38,6 +39,7 @@ chrome.downloads.onCreated.addListener((item) => {
     totalBytes: item.totalBytes || 0,
     bytesReceived: item.bytesReceived || 0,
     state: item.state || 'in_progress',
+    paused: item.paused || false,
     error: item.error || null
   };
   
@@ -69,6 +71,7 @@ chrome.downloads.onChanged.addListener((delta) => {
           totalBytes: item.totalBytes,
           bytesReceived: item.bytesReceived,
           state: item.state,
+          paused: item.paused || false,
           error: item.error
         };
         handleDelta(id, delta);
@@ -82,6 +85,10 @@ chrome.downloads.onChanged.addListener((delta) => {
 // Helper to process changed event
 function handleDelta(id, delta) {
   const item = activeDownloads[id];
+  if (!item) {
+    console.warn(`[handleDelta] Không tìm thấy item với ID: ${id} trong activeDownloads.`);
+    return;
+  }
   
   if (delta.state) {
     item.state = delta.state.current;
@@ -97,6 +104,11 @@ function handleDelta(id, delta) {
   } else if (delta.filename) {
     item.filename = getBasename(delta.filename.current);
   }
+  if (delta.paused) {
+    item.paused = delta.paused.current;
+  }
+
+  console.log(`[handleDelta] ID: ${id}, State: ${item.state}, Bytes: ${item.bytesReceived}/${item.totalBytes}`);
 
   // Handle completion or failure
   if (item.state === 'complete' || item.state === 'interrupted') {
@@ -109,74 +121,129 @@ function handleDelta(id, delta) {
   updateBadgeAndAnimation();
 }
 
-// Cập nhật badge tiến độ tải xuống và hiệu ứng nhấp nháy từ dữ liệu gốc của trình duyệt
+// Cập nhật badge tiến độ tải xuống và hiệu ứng nhấp nháy từ dữ liệu in-memory activeDownloads
 /********************************************************************************
- * SỬA ĐỔI CHÍNH: Thay đổi checkmark Unicode to bằng biểu tượng checkmark nhỏ gọn *
- * vẽ động bằng OffscreenCanvas để tối ưu hóa thiết kế.                          *
+ * SỬA ĐỔI CHÍNH: Đồng bộ hoàn hảo việc tính toán Badge tiến độ và hoạt ảnh     *
+ * thông qua biến lưu trữ đồng bộ activeDownloads thay vì truy vấn không đồng bộ*
+ * của chrome.downloads.search, nhằm triệt tiêu lỗi hiển thị của nhiều tệp cùng lúc.*
  ********************************************************************************/
 function updateBadgeAndAnimation() {
-  chrome.downloads.search({ state: 'in_progress' }, (items) => {
-    // Lọc bằng sessionDownloadIds để chỉ tính toán tiến trình cho các tệp đang tải trong phiên hiện tại
-    let activeItems = (items || []).filter(item => 
-      !item.paused && sessionDownloadIds.has(item.id)
-    );
-    
-    // Loại bỏ các tệp tin chưa bắt đầu nhận dữ liệu (bytesReceived === 0) 
-    // để tránh các tệp bị nghẽn/chờ xác nhận kéo tụt chỉ số phần trăm của tệp đang chạy.
-    const downloadingItems = activeItems.filter(item => item.bytesReceived > 0);
-    if (downloadingItems.length > 0) {
-      activeItems = downloadingItems;
-    }
+  console.log("[updateBadgeAndAnimation] Toàn bộ activeDownloads:", JSON.stringify(activeDownloads));
+  
+  // Lọc lấy danh sách các tệp đang tải thực sự từ activeDownloads bộ nhớ
+  let activeItems = Object.values(activeDownloads).filter(item => 
+    item.state === 'in_progress' && !item.paused
+  );
+  
+  console.log("[updateBadgeAndAnimation] Danh sách activeItems (đang tải & không paused):", JSON.stringify(activeItems));
+  
+  // Loại bỏ các tệp tin chưa bắt đầu nhận dữ liệu (bytesReceived === 0) 
+  // để tránh các tệp bị nghẽn/chờ xác nhận kéo tụt chỉ số phần trăm của tệp đang chạy.
+  const downloadingItems = activeItems.filter(item => item.bytesReceived > 0);
+  if (downloadingItems.length > 0) {
+    activeItems = downloadingItems;
+  }
 
-    if (activeItems.length === 0) {
-      if (wasDownloading) {
-        // Vừa tải xong: hiển thị Icon hoàn thành với checkmark (chỉ hiển thị nếu popup không mở)
-        if (!isPopupOpen) {
-          showCompletionBadge();
-        } else {
-          isCompleteState = false;
-          stopAnimation();
-        }
-        wasDownloading = false;
+  if (activeItems.length === 0) {
+    console.log("[updateBadgeAndAnimation] Không có tệp nào đang tải (activeItems rỗng).");
+    if (wasDownloading) {
+      // Vừa tải xong: hiển thị Icon hoàn thành với checkmark (chỉ hiển thị nếu popup không mở)
+      if (!isPopupOpen) {
+        showCompletionBadge();
       } else {
-        // Kiểm tra để không xóa nhầm Icon checkmark đang hiển thị
-        if (!isCompleteState) {
-          chrome.action.setBadgeText({ text: '' });
-          stopAnimation();
-        }
+        isCompleteState = false;
+        stopAnimation();
       }
-      clearProgressAnimation();
-      return;
-    }
-
-    // Đang tải: đặt flag wasDownloading = true và reset trạng thái hoàn tất
-    wasDownloading = true;
-    isCompleteState = false;
-    startAnimation();
-
-    let totalBytes = 0;
-    let bytesReceived = 0;
-    let indeterminate = false;
-
-    activeItems.forEach(item => {
-      if (item.totalBytes > 0) {
-        totalBytes += item.totalBytes;
-        bytesReceived += item.bytesReceived;
-      } else {
-        indeterminate = true;
-      }
-    });
-
-    // Reset màu nền Badge về màu xanh dương mặc định khi đang tải
-    chrome.action.setBadgeBackgroundColor({ color: '#0078d4' });
-
-    if (indeterminate || totalBytes === 0) {
-      chrome.action.setBadgeText({ text: '...' });
+      wasDownloading = false;
     } else {
-      const percent = Math.floor((bytesReceived / totalBytes) * 100);
-      chrome.action.setBadgeText({ text: `${percent}%` });
+      // Kiểm tra để không xóa nhầm Icon checkmark đang hiển thị
+      if (!isCompleteState) {
+        chrome.action.setBadgeText({ text: '' });
+        stopAnimation();
+      }
+    }
+    clearProgressAnimation();
+    closeOffscreenDocument();
+    return;
+  }
+
+  // Đang tải: đặt flag wasDownloading = true và reset trạng thái hoàn tất
+  ensureOffscreenDocument();
+  wasDownloading = true;
+  isCompleteState = false;
+  startAnimation();
+
+  let totalBytes = 0;
+  let bytesReceived = 0;
+  let indeterminate = false;
+
+  activeItems.forEach(item => {
+    if (item.totalBytes > 0) {
+      totalBytes += item.totalBytes;
+      bytesReceived += item.bytesReceived;
+    } else {
+      indeterminate = true;
     }
   });
+
+  // Reset màu nền Badge về màu xanh dương mặc định khi đang tải
+  chrome.action.setBadgeBackgroundColor({ color: '#0078d4' });
+
+  if (indeterminate || totalBytes === 0) {
+    console.log("[updateBadgeAndAnimation] Đang tải ở chế độ không xác định (indeterminate).");
+    chrome.action.setBadgeText({ text: '...' });
+  } else {
+    const percent = Math.floor((bytesReceived / totalBytes) * 100);
+    console.log(`[updateBadgeAndAnimation] Đang tải: ${percent}% (Tổng: ${bytesReceived}/${totalBytes})`);
+    chrome.action.setBadgeText({ text: `${percent}%` });
+  }
+}
+
+let isCreatingOffscreen = false;
+
+async function ensureOffscreenDocument() {
+  if (isCreatingOffscreen) return;
+  
+  if (chrome.runtime.getContexts) {
+    const contexts = await chrome.runtime.getContexts({
+      contextTypes: ['OFFSCREEN_DOCUMENT']
+    });
+    if (contexts.length > 0) {
+      chrome.runtime.sendMessage({ action: 'start-polling' }).catch(() => {});
+      return;
+    }
+  }
+  
+  isCreatingOffscreen = true;
+  try {
+    await chrome.offscreen.createDocument({
+      url: 'offscreen.html',
+      reasons: ['LOCAL_STORAGE'],
+      justification: 'Keep service worker alive and poll download progress'
+    });
+    console.log("[background.js] Đã tạo thành công Offscreen Document.");
+    chrome.runtime.sendMessage({ action: 'start-polling' }).catch(() => {});
+  } catch (err) {
+    console.error("[background.js] Lỗi khi tạo Offscreen Document:", err);
+  } finally {
+    isCreatingOffscreen = false;
+  }
+}
+
+async function closeOffscreenDocument() {
+  if (chrome.runtime.getContexts) {
+    const contexts = await chrome.runtime.getContexts({
+      contextTypes: ['OFFSCREEN_DOCUMENT']
+    });
+    if (contexts.length > 0) {
+      try {
+        await chrome.offscreen.closeDocument();
+        console.log("[background.js] Đã đóng Offscreen Document.");
+      } catch (err) {
+        console.error("[background.js] Lỗi khi đóng Offscreen Document:", err);
+      }
+    }
+  }
 }
 
 // Vẽ biểu tượng hoàn thành với vòng tròn màu xanh lá và dấu checkmark trắng nhỏ sắc nét
@@ -336,6 +403,65 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     isCompleteState = false;
     chrome.action.setBadgeText({ text: '' });
     stopAnimation(); // Khôi phục biểu tượng mặc định
+  } else if (request.action === 'polling-tick') {
+    chrome.downloads.search({ state: 'in_progress' }, (items) => {
+      if (!items || items.length === 0) {
+        closeOffscreenDocument();
+        
+        // Cập nhật lại activeDownloads của các tệp đã tải xong hoặc lỗi
+        Object.keys(activeDownloads).forEach(id => {
+          chrome.downloads.search({ id: parseInt(id) }, (details) => {
+            if (details && details[0]) {
+              const detail = details[0];
+              if (detail.state === 'complete' || detail.state === 'interrupted') {
+                delete activeDownloads[id];
+              }
+            } else {
+              delete activeDownloads[id];
+            }
+            updateBadgeAndAnimation();
+          });
+        });
+        return;
+      }
+
+      const updatedIds = new Set(items.map(item => item.id));
+
+      // Thêm hoặc cập nhật các tệp đang tải vào activeDownloads
+      items.forEach(item => {
+        activeDownloads[item.id] = {
+          id: item.id,
+          filename: getBasename(item.filename),
+          totalBytes: item.totalBytes || 0,
+          bytesReceived: item.bytesReceived || 0,
+          state: item.state || 'in_progress',
+          paused: item.paused || false,
+          error: item.error || null
+        };
+        sessionDownloadIds.add(item.id);
+      });
+
+      // Dọn dẹp các tệp đã hoàn thành không còn trong danh sách gửi về
+      Object.keys(activeDownloads).forEach(id => {
+        const numericId = parseInt(id);
+        if (!updatedIds.has(numericId)) {
+          chrome.downloads.search({ id: numericId }, (details) => {
+            if (details && details[0]) {
+              const detail = details[0];
+              if (detail.state === 'complete' || detail.state === 'interrupted') {
+                delete activeDownloads[id];
+              }
+            } else {
+              delete activeDownloads[id];
+            }
+            updateBadgeAndAnimation();
+          });
+        }
+      });
+
+      updateBadgeAndAnimation();
+      broadcastProgress();
+    });
   }
 });
 
@@ -359,5 +485,24 @@ chrome.runtime.onStartup.addListener(() => {
   }
 });
 
-// Đồng bộ trạng thái Badge và hoạt ảnh ngay khi Service Worker khởi động
-updateBadgeAndAnimation();
+// Khởi tạo activeDownloads từ các lượt tải đang chạy trong trình duyệt khi Service Worker khởi động
+chrome.downloads.search({ state: 'in_progress' }, (items) => {
+  if (items) {
+    items.forEach(item => {
+      activeDownloads[item.id] = {
+        id: item.id,
+        filename: getBasename(item.filename),
+        totalBytes: item.totalBytes || 0,
+        bytesReceived: item.bytesReceived || 0,
+        state: item.state || 'in_progress',
+        paused: item.paused || false,
+        error: item.error || null
+      };
+      sessionDownloadIds.add(item.id);
+    });
+  }
+  updateBadgeAndAnimation();
+  if (items && items.length > 0) {
+    ensureOffscreenDocument();
+  }
+});

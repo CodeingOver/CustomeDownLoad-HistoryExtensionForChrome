@@ -1,13 +1,14 @@
 {
   "manifest_version": 3,
   "name": "Edge Downloads",
-  "version": "1.2.10",
+  "version": "1.2.13",
   "description": "Popup quản lý lượt tải xuống thiết kế Fluent phong cách Edge",
   "permissions": [
     "downloads",
     "downloads.open",
     "downloads.ui",
-    "activeTab"
+    "activeTab",
+    "offscreen"
   ],
   "background": {
     "service_worker": "background.js"

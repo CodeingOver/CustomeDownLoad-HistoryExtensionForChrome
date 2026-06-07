@@ -40,7 +40,9 @@ d:/CodePython/CustomeExtensionForChrome/
     ├── popup.html                      # Giao diện popup lượt tải
     ├── popup.css                       # Kiểu giao diện và progress bar
     ├── popup.js                        # Logic theo dõi & thao tác tải xuống
-    ├── background.js                   # Service Worker toàn cục quản lý tiến trình tải
+    ├── background.js                   # Service Worker quản lý vòng đời tải xuống và vẽ Canvas
+    ├── offscreen.html                  # HTML chứa script offscreen để polling tiến độ ngầm
+    ├── offscreen.js                    # Logic offscreen chạy polling liên tục không bị ngủ đông
     ├── content.js                      # Content Script hiển thị hoạt ảnh Toast Fluent
     ├── icon.svg                        # Icon gốc dạng SVG (trắng)
     ├── icon16.png                      # Icon trắng kích thước 16x16
@@ -63,8 +65,9 @@ Hệ thống chia làm hai thành phần lớn tương ứng với hai tiện í
    - Giao diện người dùng (`popup.html` & `popup.css`): Hiển thị cấu trúc tab và danh sách kết quả.
    - Trình điều khiển logic (`popup.js`): Giao tiếp với API trình duyệt (`chrome.history` và `chrome.sessions`) để lấy lịch sử, khôi phục tab đã đóng, và tương tác với các thiết bị được đồng bộ.
 2. **Thành phần Tải xuống (Downloads Component)**:
-   - Giao diện người dùng (`popup.html`, `popup.css`, `popup.js`): Hiển thị danh sách tải xuống, hỗ trợ chế độ thu gọn phiên hiện tại kết hợp nút "See more" để mở rộng, mở tệp, hiển thị vị trí và xóa lịch sử tải xuống.
-   - Service Worker (`background.js`): Chạy ngầm toàn cục để theo dõi các thay đổi tải xuống, tính toán tổng phần trăm (bỏ qua tệp tạm dừng), điều khiển Badge nhấp nháy Fluent, lưu vết danh sách ID tải xuống trong phiên hiện hành và bắn thông báo tới tab đang mở.
+   - Giao diện người dùng (`popup.html`, `popup.css`, `popup.js`): Hiển thị danh sách tải xuống, hỗ trợ chế độ thu gọn phiên hiện tại kết hợp nút "See more" để mở rộng, mở tệp, hiển thị vị trí và xóa lịch sử tải xuống. Có vòng lặp polling 1 giây cục bộ để cập nhật trực tiếp tiến trình trong DOM mà không cần vẽ lại danh sách.
+   - Service Worker (`background.js`): Chạy ngầm để quản lý vòng đời tải xuống, tắt UI mặc định của Chrome, xử lý trạng thái hoàn tất bằng vẽ Canvas checkmark Fluent, và điều phối đóng/mở tài liệu offscreen.
+   - Tài liệu ẩn (`offscreen.html`, `offscreen.js`): Môi trường DOM ẩn để chạy vòng lặp `setInterval` polling dữ liệu tiến trình tải xuống mà không bị Chrome dừng Service Worker, gửi kết quả thông qua tin nhắn `'progress-update'`.
    - Content Script (`content.js`): Chèn Card Fluent Toast bọc Shadow DOM độc lập để hiển thị tiến trình hình tròn và hiệu ứng nổ hạt hoàn tất trên trang web đang active.
 
 ---
@@ -81,10 +84,11 @@ Hệ thống chia làm hai thành phần lớn tương ứng với hai tiện í
 ### Luồng 2: Theo dõi và cập nhật tiến trình tải xuống
 1. Người dùng bắt đầu tải xuống một tệp tin.
 2. Trình duyệt kích hoạt sự kiện `chrome.downloads.onCreated`.
-3. Background Service Worker nhận sự kiện, tự động thiết lập vô hiệu hóa bong bóng tải gốc bằng `setUiOptions`, lưu ID tệp tải vào danh sách phiên làm việc hiện tại (`sessionDownloadIds`), gọi `chrome.action.openPopup()` để tự động hiển thị menu danh sách tải xuống, khởi động hoạt ảnh nhấp nháy phát sáng (glow icon) và hiển thị % tải xuống trực tiếp trên thanh công cụ (Badge).
-4. Sự kiện `chrome.downloads.onChanged` liên tục kích hoạt. Service Worker truy vấn dữ liệu gốc của trình duyệt thông qua `chrome.downloads.search` (lọc các tệp tạm dừng hoặc chưa bắt đầu nhận dữ liệu) để tính toán chính xác phần trăm tiến độ thực tế, cập nhật Badge và gửi tin nhắn tới Content Script trên tab active (sử dụng query tìm kiếm `lastFocusedWindow` để định vị đúng tab nền, tránh xung đột khi cửa sổ popup đang mở).
-5. Content Script vẽ card Fluent Toast bọc Shadow DOM ở góc trên bên phải, hiển thị tiến trình xoay tròn Circular Progress.
-6. Khi hoàn tất, Service Worker gửi tin nhắn hoàn thành, kích hoạt hoạt ảnh hạt màu nổ (particle explode) trên card Toast của Content Script, tự động biến mất sau 5 giây. Đồng thời, nếu cửa sổ popup không mở, Service Worker sẽ vẽ động biểu tượng hoàn thành bằng cách sử dụng `OffscreenCanvas` để tạo một vòng tròn màu xanh lá cây sắc nét kèm dấu tích trắng nhỏ ở góc dưới bên phải biểu tượng (thay vì ký tự Unicode `✔` quá to và bị Windows đổi màu tím), rồi đặt biểu tượng thông qua `chrome.action.setIcon`. Biểu tượng hoàn tất này sẽ được khôi phục về mặc định ngay khi người dùng mở popup hoặc bắt đầu lượt tải mới.
+3. Background Service Worker nhận sự kiện, tự động thiết lập vô hiệu hóa bong bóng tải gốc bằng `setUiOptions`, lưu ID tệp tải vào danh sách phiên làm việc hiện tại (`sessionDownloadIds`), gọi `chrome.action.openPopup()` để tự động hiển thị menu danh sách tải xuống, khởi động hoạt ảnh nhấp nháy phát sáng (glow icon) và gọi `ensureOffscreenDocument()` để kích hoạt tài liệu ẩn Offscreen.
+4. Tài liệu Offscreen hoạt động và bắt đầu polling API `chrome.downloads.search({ state: 'in_progress' })` mỗi 1 giây. Nó gửi tin nhắn `'progress-update'` định kỳ chứa dữ liệu byte và trạng thái tệp đang tải về Service Worker.
+5. Service Worker nhận tin nhắn `'progress-update'`, cập nhật bộ nhớ đệm `activeDownloads` và chạy hàm `updateBadgeAndAnimation()` để tính toán phần trăm tổng tiến độ, hiển thị chỉ số Badge % thực tế. Ngoài ra, khi popup đang mở, `popup.js` chạy một cơ chế polling in-place riêng mỗi 1 giây để cập nhật trực tiếp giao diện hiển thị của các hàng đang tải mà không làm giật lắc DOM. Đồng thời, thông báo tiến độ vẫn được gửi tới Content Script trên tab active (sử dụng query tìm kiếm `lastFocusedWindow` để định vị đúng tab nền, tránh xung đột khi cửa sổ popup đang mở).
+6. Content Script vẽ card Fluent Toast bọc Shadow DOM ở góc trên bên phải, hiển thị tiến trình xoay tròn Circular Progress.
+7. Khi hoàn tất, Service Worker gửi tin nhắn hoàn thành, kích hoạt hoạt ảnh hạt màu nổ (particle explode) trên card Toast của Content Script, tự động biến mất sau 5 giây. Đồng thời, nếu cửa sổ popup không mở, Service Worker sẽ vẽ động biểu tượng hoàn thành bằng cách sử dụng `OffscreenCanvas` để tạo một vòng tròn màu xanh lá cây sắc nét kèm dấu tích trắng nhỏ ở góc dưới bên phải biểu tượng (thay vì ký tự Unicode `✔` quá to và bị Windows đổi màu tím), rồi đặt biểu tượng thông qua `chrome.action.setIcon`. Khi không còn tệp nào đang tải ngầm, Offscreen Document tự động đóng lại thông qua `closeOffscreenDocument()`. Biểu tượng hoàn tất này sẽ được khôi phục về mặc định ngay khi người dùng mở popup hoặc bắt đầu lượt tải mới.
 
 ### Luồng 3: Thu gọn và mở rộng danh sách tải xuống (See more)
 1. Khi người dùng click biểu tượng Downloads, Popup gửi tin nhắn lấy danh sách ID của phiên (`get-session-downloads`) từ Service Worker.
@@ -159,11 +163,12 @@ sequenceDiagram
     Chrome->>SW: Kích hoạt sự kiện onCreated
     SW->>Chrome: Gọi chrome.action.openPopup()
     Chrome->>Pop: Hiển thị giao diện Popup tự động
-    loop Định kỳ
-        Chrome->>SW: Kích hoạt onChanged
-        SW->>Chrome: Gọi chrome.downloads.search() để lấy tiến độ
-        SW->>Chrome: Cập nhật chỉ số Badge % thực tế
-        Chrome->>Pop: Cập nhật hiển thị dòng tiến trình
+    loop Định kỳ mỗi 1 giây
+        Offscreen->>Chrome: Gọi chrome.downloads.search(state: in_progress)
+        Chrome->>Offscreen: Trả về thông tin bytesReceived & totalBytes
+        Offscreen->>SW: Gửi tin nhắn progress-update chứa mảng tệp đang tải
+        SW->>Chrome: Cập nhật chỉ số Badge % thực tế hoặc "..."
+        Pop->>Chrome: Gọi chrome.downloads.search() cập nhật DOM tại chỗ
     end
     Chrome->>Disk: Hoàn tất ghi file lên ổ đĩa
     Chrome->>SW: Kích hoạt onChanged (complete)
