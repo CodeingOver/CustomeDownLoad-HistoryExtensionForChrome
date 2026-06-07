@@ -4,6 +4,28 @@ Tài liệu này ghi lại toàn bộ lịch sử các phiên bản phát hành 
 
 ---
 
+### [v1.2.18] - 2026-06-07
+
+#### - **[Sửa lỗi]**
+- Giảm spam API hệ thống khi tắt giao diện tải xuống mặc định:
+  - Gỡ các lần gọi `disableNativeDownloadUi()` khỏi `chrome.downloads.onCreated` và `chrome.downloads.onChanged` trong `background.js`.
+  - Giữ cơ chế tắt Download Bubble/Download Shelf ở các điểm khởi động ổn định gồm lúc Service Worker nạp, `runtime.onInstalled` và `runtime.onStartup`.
+  - Tránh gọi `chrome.downloads.setUiOptions()` hoặc fallback `chrome.downloads.setShelfEnabled()` lặp lại liên tục theo từng sự kiện tiến trình tải xuống.
+
+#### - **[Cập nhật]**
+- Đồng bộ nâng phiên bản của cả hai tiện ích mở rộng lên `1.2.18` tại các tệp `manifest.json`.
+
+### [v1.2.17] - 2026-06-07
+
+#### - **[Cập nhật]**
+- Gia cố cơ chế tắt giao diện tải xuống mặc định của trình duyệt:
+  - Gom toàn bộ logic ẩn Download Bubble/Download Shelf trong `background.js` vào helper `disableNativeDownloadUi()`.
+  - Ưu tiên dùng API mới `chrome.downloads.setUiOptions({ enabled: false })` cho Chrome/Chromium hiện đại.
+  - Bổ sung fallback `chrome.downloads.setShelfEnabled(false)` cho các phiên bản Chromium cũ còn dùng Download Shelf.
+  - Gọi lại helper tại các điểm vòng đời quan trọng gồm lúc Service Worker nạp, `runtime.onInstalled`, `runtime.onStartup`, `downloads.onCreated` và `downloads.onChanged`.
+- Bổ sung quyền `"downloads.shelf"` trong `EdgeDownloadsPopup/manifest.json` để fallback cũ có đủ quyền hoạt động trên Chromium cũ.
+- Đồng bộ nâng phiên bản của cả hai tiện ích mở rộng lên `1.2.17` tại các tệp `manifest.json`.
+
 ### [v1.2.16] - 2026-06-07
 
 #### - **[Sửa lỗi]**

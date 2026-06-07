@@ -25,18 +25,10 @@ chrome.runtime.onConnect.addListener((port) => {
 // Initialize action badge style
 chrome.action.setBadgeBackgroundColor({ color: '#0078d4' });
 
-// Disable native Chrome download shelf / bubble UI
-if (chrome.downloads.setUiOptions) {
-  chrome.downloads.setUiOptions({ enabled: false });
-}
+disableNativeDownloadUi('service-worker-load');
 
 // Listen for new downloads
 chrome.downloads.onCreated.addListener((item) => {
-  // Đảm bảo vô hiệu hóa bong bóng tải mặc định của Chrome
-  if (chrome.downloads.setUiOptions) {
-    chrome.downloads.setUiOptions({ enabled: false });
-  }
-
   sessionDownloadIds.add(item.id);
   activeDownloads[item.id] = {
     id: item.id,
@@ -72,12 +64,41 @@ function shouldAutoOpenPopupForCreatedDownload(item) {
   return true;
 }
 
+function disableNativeDownloadUi(source) {
+  try {
+    if (chrome.downloads.setUiOptions) {
+      const result = chrome.downloads.setUiOptions({ enabled: false });
+      if (result && typeof result.catch === 'function') {
+        result.catch((err) => {
+          console.warn(`[background.js] Không thể tắt Download UI bằng setUiOptions (${source}):`, err.message);
+          disableLegacyDownloadShelf(source);
+        });
+      }
+      return;
+    }
+
+    disableLegacyDownloadShelf(source);
+  } catch (err) {
+    console.warn(`[background.js] Không thể tắt Download UI mặc định (${source}):`, err.message);
+    disableLegacyDownloadShelf(source);
+  }
+}
+
+function disableLegacyDownloadShelf(source) {
+  if (!chrome.downloads.setShelfEnabled) {
+    return;
+  }
+
+  try {
+    chrome.downloads.setShelfEnabled(false);
+    console.log(`[background.js] Đã tắt Download Shelf mặc định (${source}).`);
+  } catch (err) {
+    console.warn(`[background.js] Không thể tắt Download Shelf mặc định (${source}):`, err.message);
+  }
+}
+
 // Listen for changes in downloads
 chrome.downloads.onChanged.addListener((delta) => {
-  // Đảm bảo vô hiệu hóa bong bóng tải mặc định của Chrome trong suốt tiến trình thay đổi
-  if (chrome.downloads.setUiOptions) {
-    chrome.downloads.setUiOptions({ enabled: false });
-  }
   sessionDownloadIds.add(delta.id);
   const id = delta.id;
   if (!activeDownloads[id]) {
@@ -525,15 +546,11 @@ function getBasename(path) {
 
 // Đăng ký các sự kiện lifecycle của extension để ẩn download UI mặc định càng sớm càng tốt
 chrome.runtime.onInstalled.addListener(() => {
-  if (chrome.downloads.setUiOptions) {
-    chrome.downloads.setUiOptions({ enabled: false });
-  }
+  disableNativeDownloadUi('runtime-installed');
 });
 
 chrome.runtime.onStartup.addListener(() => {
-  if (chrome.downloads.setUiOptions) {
-    chrome.downloads.setUiOptions({ enabled: false });
-  }
+  disableNativeDownloadUi('runtime-startup');
 });
 
 // Khởi tạo activeDownloads từ các lượt tải đang chạy trong trình duyệt khi Service Worker khởi động
