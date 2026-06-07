@@ -337,7 +337,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     chrome.action.setBadgeText({ text: '' });
     stopAnimation(); // Khôi phục biểu tượng mặc định
   }
-  return true;
 });
 
 // Helper to get file basename

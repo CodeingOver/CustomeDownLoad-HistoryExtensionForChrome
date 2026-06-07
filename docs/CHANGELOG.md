@@ -4,6 +4,17 @@ Tài liệu này ghi lại toàn bộ lịch sử các phiên bản phát hành 
 
 ---
 
+### [v1.2.10] - 2026-06-07
+
+#### - **[Sửa lỗi]**
+- Khắc phục lỗi "Uncaught (in promise) Error: A listener indicated an asynchronous response...":
+  - Loại bỏ hoàn toàn dòng `return true;` không cần thiết ở cuối trình lắng nghe tin nhắn `chrome.runtime.onMessage.addListener` trong [background.js](file:///d:/CodePython/CustomeExtensionForChrome/EdgeDownloadsPopup/background.js) do tất cả các phản hồi được thực hiện đồng bộ (synchronous) hoặc không yêu cầu phản hồi từ phía popup, tránh việc Chrome báo lỗi đóng kênh thông tin trước khi phản hồi.
+
+#### - **[Cập nhật]**
+- Đồng bộ nâng phiên bản của cả hai tiện ích mở rộng lên `1.2.10` tại các tệp `manifest.json`.
+
+---
+
 ### [v1.2.9] - 2026-06-07
 
 #### - **[Sửa lỗi]**
