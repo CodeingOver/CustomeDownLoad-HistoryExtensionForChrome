@@ -1,6 +1,6 @@
-// Offscreen document script that acts as a lightweight heartbeat to keep the Service Worker alive.
+// Offscreen document script that drives lightweight progress polling while keeping the Service Worker alive.
 let progressInterval = null;
-const HEARTBEAT_INTERVAL_MS = 25000;
+const PROGRESS_POLL_INTERVAL_MS = 3000;
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === 'start-polling') {
@@ -12,22 +12,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
-// Tự động khởi chạy heartbeat khi load
+// Tự động khởi chạy polling khi load
 startPolling();
 
 function startPolling() {
   if (progressInterval) return;
 
-  console.log("[offscreen.js] Khởi chạy vòng lặp phát nhịp tim keep-alive mỗi 25 giây.");
+  console.log("[offscreen.js] Khởi chạy vòng lặp polling tiến trình mỗi 3 giây.");
 
   progressInterval = setInterval(() => {
-    // Gửi nhịp tim về Service Worker để giữ worker còn thức; tiến trình lấy từ onChanged.
+    // Gửi tick về Service Worker để đọc bytesReceived vì onChanged không phát sự kiện cho từng byte.
     chrome.runtime.sendMessage({
       action: 'polling-tick'
     }).catch(() => {
       // SW có thể đang ngủ, tin nhắn gửi đi sẽ tự động đánh thức nó dậy
     });
-  }, HEARTBEAT_INTERVAL_MS);
+  }, PROGRESS_POLL_INTERVAL_MS);
 }
 
 function stopPolling() {

@@ -4,6 +4,17 @@ Tài liệu này ghi lại toàn bộ lịch sử các phiên bản phát hành 
 
 ---
 
+### [v1.2.21] - 2026-06-07
+
+#### - **[Sửa lỗi]**
+- Khôi phục cập nhật phần trăm tải xuống bị kẹt ở `0%`:
+  - Đưa `offscreen.js` về chu kỳ tick 3 giây để Service Worker có nhịp đọc tiến trình đủ gần thời gian thực.
+  - Trong `background.js`, xử lý `polling-tick` bằng `chrome.downloads.search({ state: 'in_progress' })` nhưng chỉ cập nhật hai trường `bytesReceived` và `totalBytes` vào `activeDownloads`.
+  - Chỉ gọi `updateBadgeAndAnimation()` và gửi batch `sync-all-progress` khi byte thật sự thay đổi, tránh render và message thừa khi mạng đứng yên.
+
+#### - **[Cập nhật]**
+- Đồng bộ nâng phiên bản của cả hai tiện ích mở rộng lên `1.2.21` tại các tệp `manifest.json`.
+
 ### [v1.2.20] - 2026-06-07
 
 #### - **[Xóa bỏ]**

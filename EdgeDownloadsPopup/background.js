@@ -457,6 +457,38 @@ function sendProgressBatchToPopup(items) {
   }).catch(() => {});
 }
 
+function handleProgressPollingTick() {
+  chrome.downloads.search({ state: 'in_progress' }, (items) => {
+    if (!items || items.length === 0) {
+      closeOffscreenDocument();
+      return;
+    }
+
+    let progressChanged = false;
+
+    items.forEach(item => {
+      const currentItem = activeDownloads[item.id];
+      if (!currentItem || currentItem.state !== 'in_progress') {
+        return;
+      }
+
+      const bytesReceived = item.bytesReceived || 0;
+      const totalBytes = item.totalBytes || 0;
+
+      if (currentItem.bytesReceived !== bytesReceived || currentItem.totalBytes !== totalBytes) {
+        currentItem.bytesReceived = bytesReceived;
+        currentItem.totalBytes = totalBytes;
+        progressChanged = true;
+      }
+    });
+
+    if (progressChanged) {
+      updateBadgeAndAnimation();
+      broadcastProgressBatch();
+    }
+  });
+}
+
 // Listen for messages from extension views
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'get-session-downloads') {
@@ -466,7 +498,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     chrome.action.setBadgeText({ text: '' });
     stopAnimation(); // Khôi phục biểu tượng mặc định
   } else if (request.action === 'polling-tick') {
-    updateBadgeAndAnimation();
+    handleProgressPollingTick();
   }
 });
 
