@@ -4,6 +4,18 @@ Tài liệu này ghi lại toàn bộ lịch sử các phiên bản phát hành 
 
 ---
 
+### [v1.2.25] - 2026-06-07
+
+#### - **[Thêm mới]**
+- Bổ sung bộ icon PNG trạng thái cho `EdgeDownloadsPopup`:
+  - Thêm icon pause từ `pause_filled_icon_202026.png` và sinh các kích thước chuẩn `pause_icon16.png`, `pause_icon32.png`, `pause_icon48.png`, `pause_icon128.png`.
+  - Thêm icon hoàn tất từ `checkbox_checked_filled_icon_201518.png` và sinh các kích thước chuẩn `complete_icon16.png`, `complete_icon32.png`, `complete_icon48.png`, `complete_icon128.png`.
+
+#### - **[Cập nhật]**
+- Cập nhật `background.js` để trạng thái tạm dừng dùng icon pause thay cho badge chữ `PAUS`.
+- Cập nhật trạng thái hoàn tất để dùng icon checkbox PNG thay cho cơ chế vẽ checkmark bằng Canvas trong Service Worker.
+- Đồng bộ nâng phiên bản của cả hai tiện ích mở rộng lên `1.2.25` tại các tệp `manifest.json`.
+
 ### [v1.2.24] - 2026-06-07
 
 #### - **[Thêm mới]**
