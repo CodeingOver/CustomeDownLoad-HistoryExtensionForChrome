@@ -4,6 +4,19 @@ Tài liệu này ghi lại toàn bộ lịch sử các phiên bản phát hành 
 
 ---
 
+### [v1.2.8] - 2026-06-07
+
+#### - **[Sửa lỗi]**
+- Khắc phục lỗi màu sắc hai biểu tượng tiện ích mở rộng bị tối màu trở lại trên thanh công cụ:
+  - Do tệp hình ảnh gốc do người dùng cung cấp (`arrow_download_filled_icon_201617.png` và `history_filled_icon_202154.png`) ban đầu có màu xám tối. Khi script cắt lề chạy, nó đã giữ nguyên màu sắc gốc này.
+  - Cập nhật quy trình xử lý ảnh: Bổ sung bộ lọc bắt buộc chuyển đổi màu sắc toàn bộ điểm ảnh của biểu tượng sang màu trắng sáng tinh khiết (`#ffffff`) trước khi xuất ra các kích cỡ PNG tiêu chuẩn.
+  - Giúp các biểu tượng luôn luôn sáng rõ, dễ nhìn và nổi bật trên cả thanh công cụ giao diện tối và sáng của trình duyệt.
+
+#### - **[Cập nhật]**
+- Đồng bộ nâng phiên bản của cả hai tiện ích mở rộng lên phiên bản mới `1.2.8`.
+
+---
+
 ### [v1.2.7] - 2026-06-07
 
 #### - **[Thêm mới]**
