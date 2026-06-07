@@ -86,6 +86,7 @@ Hệ thống sử dụng các API gốc của trình duyệt Chrome:
 - `chrome.sessions.restore`: Khôi phục một phiên làm việc đã đóng.
 - `chrome.sessions.getDevices`: Lấy danh sách tab đang mở trên các thiết bị khác đang đồng bộ tài khoản Chrome.
 - `chrome.downloads.search`: Lấy danh sách lịch sử tải xuống.
+- `chrome.downloads.getFileIcon`: Lấy biểu tượng thực tế của tệp tin từ hệ thống dựa trên phần mở rộng hoặc đường dẫn tệp.
 - `chrome.downloads.open`: Mở tệp tin đã tải xuống hoàn thành.
 - `chrome.downloads.show`: Hiển thị vị trí tệp tin trong thư mục lưu trữ (File Explorer).
 - `chrome.downloads.erase`: Xóa tệp tin khỏi lịch sử tải xuống.

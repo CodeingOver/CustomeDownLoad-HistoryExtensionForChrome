@@ -191,8 +191,8 @@ body {
 }
 
 .file-icon {
-  width: 24px;
-  height: 24px;
+  width: 32px;
+  height: 32px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -200,9 +200,10 @@ body {
   margin-top: 2px;
 }
 
+.file-icon img,
 .file-icon svg {
-  width: 24px;
-  height: 24px;
+  width: 32px;
+  height: 32px;
   object-fit: contain;
 }
 

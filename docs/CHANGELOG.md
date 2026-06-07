@@ -4,6 +4,43 @@ Tài liệu này ghi lại toàn bộ lịch sử các phiên bản phát hành 
 
 ---
 
+### [v1.0.5] - 2026-06-07
+
+#### - **[Sửa lỗi]**
+- Khắc phục lỗi sắp xếp danh sách tải xuống bằng cách cấu hình thuộc tính `orderBy: ['-startTime']` trực tiếp trong API `chrome.downloads.search` của Chrome để lấy thứ tự thời gian giảm dần gốc từ trình duyệt (mới nhất lên đầu) mà không cần tự sắp xếp thủ công ở phía client.
+
+#### - **[Thêm mới]**
+- Sử dụng API `chrome.downloads.getFileIcon` để tự động lấy icon tệp tin gốc của hệ điều hành (như Word, PDF, Excel...) thay thế cho các icon vẽ bằng SVG tĩnh trước đây.
+
+#### - **[Cập nhật]**
+- Tăng kích thước hiển thị của icon tệp từ 24px lên 32px trong giao diện pop-up giúp hiển thị to rõ ràng.
+- Rút ngắn mã nguồn bằng cách loại bỏ các hàm vẽ SVG phức tạp tĩnh, chỉ giữ lại một icon tài liệu xám mặc định làm phương án dự phòng (fallback) nếu xảy ra lỗi tải icon gốc.
+- Nâng phiên bản của tiện ích `Edge Downloads` lên `1.0.5` trong tệp `manifest.json`.
+
+---
+
+### [v1.0.4] - 2026-06-07
+
+#### - **[Sửa lỗi]**
+- Khắc phục triệt để lỗi lặp và đan xen tiêu đề ngày trong Lịch sử duyệt web (EdgeHistoryPopup) bằng cách bỏ hoàn toàn phân nhóm động "Recent" và thay thế bằng phân nhóm theo ngày dương lịch chuẩn xác của Chrome.
+- Khắc phục lỗi xuất hiện tiêu đề rỗng (như tiêu đề "Recent" không có dòng nào bên dưới) bằng cách lọc các tệp tin trùng lặp trước khi quyết định tạo thẻ tiêu đề nhóm.
+
+#### - **[Cập nhật]**
+- Làm đậm các tiêu đề ngày trong [popup.css](file:///d:/CodePython/CustomeExtensionForChrome/EdgeHistoryPopup/popup.css) của `EdgeHistoryPopup` bằng cách đổi màu chữ sang màu trắng (`--text-primary`) và cỡ chữ lên 12px để giao diện trực quan và dễ phân tách thông tin hơn.
+
+---
+
+### [v1.0.3] - 2026-06-07
+
+#### - **[Sửa lỗi]**
+- Thêm quyền `"downloads.open"` vào [EdgeDownloadsPopup/manifest.json](file:///d:/CodePython/CustomeExtensionForChrome/EdgeDownloadsPopup/manifest.json) để khắc phục lỗi "The 'downloads.open' permission is required" khi người dùng nhấp mở tệp trực tiếp từ pop-up.
+- Thêm quyền `"tabs"` vào [EdgeHistoryPopup/manifest.json](file:///d:/CodePython/CustomeExtensionForChrome/EdgeHistoryPopup/manifest.json) để sửa triệt để lỗi tab đóng gần đây trả về giá trị `undefined` cho tiêu đề và URL. Tab **Recently closed** hoạt động và đồng bộ hiển thị đúng dữ liệu thực tế của Chrome.
+
+#### - **[Xóa bỏ]**
+- Loại bỏ hoàn toàn tab "Tabs from other devices" khỏi giao diện [popup.html](file:///d:/CodePython/CustomeExtensionForChrome/EdgeHistoryPopup/popup.html) và logic [popup.js](file:///d:/CodePython/CustomeExtensionForChrome/EdgeHistoryPopup/popup.js) của `EdgeHistoryPopup` theo yêu cầu.
+
+---
+
 ### [v1.0.2] - 2026-06-07
 
 #### - **[Xóa bỏ]**

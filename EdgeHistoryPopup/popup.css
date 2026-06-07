@@ -209,10 +209,10 @@ body {
 
 /* Group Header */
 .group-header {
-  color: var(--text-secondary);
-  font-size: 11px;
+  color: var(--text-primary);
+  font-size: 12px;
   font-weight: 700;
-  padding: 12px 16px 6px 16px;
+  padding: 14px 16px 6px 16px;
   background-color: var(--bg-primary);
   position: sticky;
   top: 0;

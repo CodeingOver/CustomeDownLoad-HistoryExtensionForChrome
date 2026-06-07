@@ -89,7 +89,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // Main Loader
   function loadDownloads(query = '') {
-    const searchOptions = { limit: 50 };
+    const searchOptions = { 
+      limit: 50,
+      orderBy: ['-startTime']
+    };
     if (query.trim() !== '') {
       searchOptions.query = [query];
     }
@@ -132,6 +135,24 @@ document.addEventListener('DOMContentLoaded', function () {
     const iconDiv = document.createElement('div');
     iconDiv.className = 'file-icon';
     iconDiv.innerHTML = getFileIconSVG(ext, isRemoved);
+
+    // Fetch native file icon from OS/Chrome
+    chrome.downloads.getFileIcon(item.id, { size: 32 }, (iconUrl) => {
+      // Clear runtime lastError if file doesn't exist to avoid console errors
+      if (chrome.runtime.lastError) {
+        return;
+      }
+      if (iconUrl) {
+        const img = document.createElement('img');
+        img.src = iconUrl;
+        img.alt = ext;
+        if (isRemoved) {
+          img.style.opacity = '0.4';
+        }
+        iconDiv.innerHTML = '';
+        iconDiv.appendChild(img);
+      }
+    });
 
     // Content container
     const contentDiv = document.createElement('div');
@@ -283,85 +304,9 @@ document.addEventListener('DOMContentLoaded', function () {
     return li;
   }
 
-  // Vector icon selector for file types
+  // Default generic document fallback icon
   function getFileIconSVG(ext, isRemoved) {
     const opacity = isRemoved ? 0.4 : 1.0;
-    
-    // 1. Word Document (.docx, .doc) - Blue with 'W'
-    if (['docx', 'doc', 'odt'].includes(ext)) {
-      return `
-        <svg viewBox="0 0 24 24" style="opacity: ${opacity}">
-          <rect x="2" y="2" width="20" height="20" rx="3" fill="#185abd"/>
-          <path d="M7 6.5h3L12 14l2-7.5h3l-3.5 12h-3L7 6.5z" fill="#ffffff"/>
-        </svg>
-      `;
-    }
-
-    // 2. Excel spreadsheet (.xlsx, .xls, .csv) - Green with 'X'
-    if (['xlsx', 'xls', 'csv', 'ods'].includes(ext)) {
-      return `
-        <svg viewBox="0 0 24 24" style="opacity: ${opacity}">
-          <rect x="2" y="2" width="20" height="20" rx="3" fill="#107c41"/>
-          <path d="M7 6.5h3.5L12 11l1.5-4.5H17l-3.5 6 3.5 6h-3.5L12 14l-1.5 4.5H7l3.5-6L7 6.5z" fill="#ffffff"/>
-        </svg>
-      `;
-    }
-
-    // 3. PDF file (.pdf) - Red with generic PDF logo/sheet
-    if (ext === 'pdf') {
-      return `
-        <svg viewBox="0 0 24 24" style="opacity: ${opacity}">
-          <rect x="2" y="2" width="20" height="20" rx="3" fill="#e01b1b"/>
-          <path d="M6 6v12h12V6H6zm1 1h10v10H7V7zm2 2v2h6V9H9z" fill="#ffffff"/>
-          <text x="12" y="15" font-family="Segoe UI, sans-serif" font-weight="900" font-size="6px" fill="#ffffff" text-anchor="middle">PDF</text>
-        </svg>
-      `;
-    }
-
-    // 4. Compressed files (.zip, .rar, .7z, .tar, .gz) - Yellow zipped folder
-    if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) {
-      return `
-        <svg viewBox="0 0 24 24" style="opacity: ${opacity}">
-          <path d="M20 6h-8l-2-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2z" fill="#d0a400"/>
-          <path d="M10 6h4v8h-4z" fill="#eaeaea"/>
-          <path d="M11 7h2v1h-2zm0 2h2v1h-2zm0 2h2v1h-2z" fill="#555555"/>
-        </svg>
-      `;
-    }
-
-    // 5. Java files (.jar, .java, .class) - Java Orange Cup
-    if (['jar', 'java', 'class'].includes(ext)) {
-      return `
-        <svg viewBox="0 0 24 24" style="opacity: ${opacity}">
-          <rect x="2" y="2" width="20" height="20" rx="3" fill="#e76f51"/>
-          <path d="M9 19c0 1 1.5 1 3 1s3 0 3-1-1.5-1-3-1-3 0-3 1zm-1-4c0 1.5 1.5 2.5 4 2.5s4-1 4-2.5V9H8v6zm6-4h2V9h-2v2z" fill="#ffffff"/>
-        </svg>
-      `;
-    }
-
-    // 6. Text files (.txt, .log, .md, .ini, .json, .xml) - Grey Document
-    if (['txt', 'log', 'md', 'ini', 'json', 'xml', 'css', 'js', 'html'].includes(ext)) {
-      return `
-        <svg viewBox="0 0 24 24" style="opacity: ${opacity}">
-          <path d="M6 2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="#757575"/>
-          <path d="M14 2v5h5z" fill="#bdbdbd"/>
-          <path d="M7 10h10v1H7zm0 3h10v1H7zm0 3h7v1H7z" fill="#ffffff"/>
-        </svg>
-      `;
-    }
-
-    // 7. Image files (.png, .jpg, .jpeg, .gif, .svg, .webp) - Teal/Green Image Icon
-    if (['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp'].includes(ext)) {
-      return `
-        <svg viewBox="0 0 24 24" style="opacity: ${opacity}">
-          <rect x="2" y="2" width="20" height="20" rx="3" fill="#008080"/>
-          <circle cx="8.5" cy="8.5" r="2.5" fill="#ffffff"/>
-          <path d="M4 19l6-8 4 5 2-3 4 6H4z" fill="#ffffff"/>
-        </svg>
-      `;
-    }
-
-    // Default Fallback file icon - Grey Document icon
     return `
       <svg viewBox="0 0 24 24" style="opacity: ${opacity}">
         <path d="M6 2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="#9e9e9e"/>

@@ -1,10 +1,11 @@
 {
   "manifest_version": 3,
   "name": "Edge Downloads",
-  "version": "1.0",
+  "version": "1.0.5",
   "description": "Popup quản lý lượt tải xuống thiết kế Fluent phong cách Edge",
   "permissions": [
-    "downloads"
+    "downloads",
+    "downloads.open"
   ],
   "action": {
     "default_popup": "popup.html",

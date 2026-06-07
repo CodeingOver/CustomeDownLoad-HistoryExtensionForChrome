@@ -106,8 +106,6 @@ document.addEventListener('DOMContentLoaded', function () {
       fetchHistory(query);
     } else if (activeTabId === 'tab-closed') {
       fetchRecentlyClosed(query);
-    } else if (activeTabId === 'tab-devices') {
-      fetchOtherDevices(query);
     }
   }
 
@@ -146,19 +144,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
   function groupHistoryItems(items) {
     const groups = {};
-    const now = Date.now();
-    const twoHoursMs = 2 * 60 * 60 * 1000;
 
     items.forEach(item => {
-      const timeDiff = now - item.lastVisitTime;
-      let groupName = '';
-
-      if (timeDiff < twoHoursMs) {
-        groupName = 'Recent';
-      } else {
-        const date = new Date(item.lastVisitTime);
-        groupName = formatDateHeader(date);
-      }
+      const date = new Date(item.lastVisitTime);
+      const groupName = formatDateHeader(date);
 
       if (!groups[groupName]) {
         groups[groupName] = [];
@@ -170,18 +159,31 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   function renderGroupedHistory(groups, isNextPage = false) {
-    // Render groups in order: 'Recent', then current day, then older days
     const groupNames = Object.keys(groups);
     
-    // Sort group names (Recent always first)
+    // Sort group names in reverse chronological order
     groupNames.sort((a, b) => {
-      if (a === 'Recent') return -1;
-      if (b === 'Recent') return 1;
-      // Reverse chronological order for other dates
       return new Date(b.split(' - ')[1] || b) - new Date(a.split(' - ')[1] || a);
     });
 
     groupNames.forEach(name => {
+      // Filter out duplicate items first
+      const uniqueItems = groups[name].filter(item => {
+        const existing = list.querySelector(`.history-item[data-url="${CSS.escape(item.url)}"]`);
+        if (existing) {
+          const itemsWithSameUrl = list.querySelectorAll(`.history-item[data-url="${CSS.escape(item.url)}"]`);
+          for (let row of itemsWithSameUrl) {
+            if (row.dataset.time == item.lastVisitTime) {
+              return false; // duplicate
+            }
+          }
+        }
+        return true;
+      });
+
+      // If no unique items in this group, do not render group header or items
+      if (uniqueItems.length === 0) return;
+
       let groupHeaderLi = null;
 
       // Check if header already exists
@@ -201,21 +203,7 @@ document.addEventListener('DOMContentLoaded', function () {
       }
 
       // Group Items
-      groups[name].forEach(item => {
-        // Prevent duplicate check
-        const existing = list.querySelector(`.history-item[data-url="${CSS.escape(item.url)}"]`);
-        let isDuplicate = false;
-        if (existing) {
-          const itemsWithSameUrl = list.querySelectorAll(`.history-item[data-url="${CSS.escape(item.url)}"]`);
-          for (let row of itemsWithSameUrl) {
-            if (row.dataset.time == item.lastVisitTime) {
-              isDuplicate = true;
-              break;
-            }
-          }
-        }
-        if (isDuplicate) return;
-
+      uniqueItems.forEach(item => {
         const itemLi = createHistoryItemRow(item);
         list.appendChild(itemLi);
       });
@@ -401,87 +389,7 @@ document.addEventListener('DOMContentLoaded', function () {
     return li;
   }
 
-  // --- 3. Tabs from Other Devices ---
-  function fetchOtherDevices(queryText = '') {
-    if (!chrome.sessions || !chrome.sessions.getDevices) {
-      showEmptyState();
-      return;
-    }
 
-    chrome.sessions.getDevices({ maxResults: 10 }, function (devices) {
-      if (!devices || devices.length === 0) {
-        showEmptyState();
-        return;
-      }
-
-      const query = queryText.toLowerCase();
-      let hasMatches = false;
-
-      devices.forEach(device => {
-        const sessions = device.sessions;
-        const matchingTabs = [];
-
-        sessions.forEach(session => {
-          if (session.window && session.window.tabs) {
-            session.window.tabs.forEach(tab => {
-              if (!query || (tab.title || '').toLowerCase().includes(query) || (tab.url || '').toLowerCase().includes(query)) {
-                matchingTabs.push(tab);
-              }
-            });
-          }
-        });
-
-        if (matchingTabs.length > 0) {
-          hasMatches = true;
-
-          // Device Header
-          const headerLi = document.createElement('li');
-          headerLi.className = 'group-header';
-          headerLi.textContent = `${device.deviceName}`;
-          list.appendChild(headerLi);
-
-          // Device Tabs
-          matchingTabs.forEach(tab => {
-            const li = document.createElement('li');
-            li.className = 'history-item';
-            li.title = `${tab.title || tab.url}\n${tab.url}`;
-
-            const iconDiv = document.createElement('div');
-            iconDiv.className = 'item-icon';
-            const img = document.createElement('img');
-            img.src = getFaviconUrl(tab.url);
-            img.onerror = () => {
-              img.style.display = 'none';
-              iconDiv.innerHTML = `
-                <svg viewBox="0 0 16 16" width="16" height="16">
-                  <path fill="currentColor" d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0zm0 1c3.86 0 7 3.14 7 7a6.96 6.96 0 0 1-1.63 4.47L11.5 10.6A3.5 3.5 0 0 0 8 7a3.5 3.5 0 0 0-3.5 3.6l-1.87 1.87A6.96 6.96 0 0 1 1 8c0-3.86 3.14-7 7-7zM2.08 12.08l1.87-1.87C4.1 12.05 5.9 13 8 13c2.1 0 3.9-.95 4.05-2.79l1.87 1.87A6.97 6.97 0 0 1 8 15a6.97 6.97 0 0 1-5.92-2.92z"/>
-                </svg>
-              `;
-            };
-            iconDiv.appendChild(img);
-
-            const titleSpan = document.createElement('span');
-            titleSpan.className = 'item-title';
-            titleSpan.textContent = tab.title || tab.url;
-
-            li.appendChild(iconDiv);
-            li.appendChild(titleSpan);
-
-            li.addEventListener('click', () => {
-              chrome.tabs.create({ url: tab.url });
-              window.close();
-            });
-
-            list.appendChild(li);
-          });
-        }
-      });
-
-      if (!hasMatches) {
-        showEmptyState();
-      }
-    });
-  }
 
   // --- Helper Functions ---
 
