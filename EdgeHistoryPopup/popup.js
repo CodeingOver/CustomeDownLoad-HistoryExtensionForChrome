@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const emptyState = document.getElementById('empty-state');
   const searchInput = document.getElementById('search-input');
   const clearSearchBtn = document.getElementById('clear-search-btn');
+  const rowTemplate = document.getElementById('history-row-template');
   const btnClearData = document.getElementById('btn-clear-data');
   const btnMoreOptions = document.getElementById('btn-more-options');
   const moreDropdown = document.getElementById('more-dropdown');
@@ -18,6 +19,8 @@ document.addEventListener('DOMContentLoaded', function () {
   let oldestTimestamp = null;
   let isLoading = false;
   let hasMore = true;
+  let activeRequestId = 0;
+  let lastRenderedGroupName = null;
   const PAGE_SIZE = 50;
   const renderedItems = new Set(); // Bộ đệm in-memory kiểm tra trùng lặp cực nhanh
 
@@ -44,10 +47,33 @@ document.addEventListener('DOMContentLoaded', function () {
       if (activeTabId === 'tab-all') {
         const threshold = 30;
         if (listWrapper.scrollTop + listWrapper.clientHeight >= listWrapper.scrollHeight - threshold) {
-          fetchHistory(searchInput.value, true);
+          fetchHistory(searchInput.value, true, activeRequestId);
         }
       }
     });
+  });
+
+  list.addEventListener('click', (event) => {
+    const row = event.target.closest('.history-item');
+    if (!row || !list.contains(row)) return;
+
+    const deleteButton = event.target.closest('[data-action="delete-history"]');
+    if (deleteButton) {
+      event.stopPropagation();
+      deleteHistoryRow(row);
+      return;
+    }
+
+    if (row.dataset.sessionId) {
+      chrome.sessions.restore(row.dataset.sessionId);
+      window.close();
+      return;
+    }
+
+    if (row.dataset.url) {
+      chrome.tabs.create({ url: row.dataset.url });
+      window.close();
+    }
   });
 
   // Action Buttons
@@ -103,22 +129,25 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // Main Loader
   function loadActiveTab(query = '') {
+    const requestId = ++activeRequestId;
+
     list.innerHTML = '';
     renderedItems.clear(); // Xóa bộ đệm các tệp đã vẽ
     emptyState.classList.add('hidden');
     oldestTimestamp = null;
     isLoading = false;
     hasMore = true;
+    lastRenderedGroupName = null;
 
     if (activeTabId === 'tab-all') {
-      fetchHistory(query);
+      fetchHistory(query, false, requestId);
     } else if (activeTabId === 'tab-closed') {
-      fetchRecentlyClosed(query);
+      fetchRecentlyClosed(query, requestId);
     }
   }
 
   // --- 1. History Tab ---
-  function fetchHistory(queryText = '', isNextPage = false) {
+  function fetchHistory(queryText = '', isNextPage = false, requestId = activeRequestId) {
     if (isLoading || !hasMore) return;
     isLoading = true;
 
@@ -128,6 +157,10 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     chrome.history.search(searchOptions, function (data) {
+      if (requestId !== activeRequestId || activeTabId !== 'tab-all' || queryText !== searchInput.value) {
+        return;
+      }
+
       isLoading = false;
       if (!data || data.length === 0) {
         hasMore = false;
@@ -187,22 +220,12 @@ document.addEventListener('DOMContentLoaded', function () {
       // If no unique items in this group, do not render group header or items
       if (uniqueItems.length === 0) return;
 
-      let groupHeaderLi = null;
-
-      // Check if header already exists
-      const headers = list.querySelectorAll('.group-header');
-      if (headers.length > 0) {
-        const lastHeader = headers[headers.length - 1];
-        if (lastHeader.textContent === name) {
-          groupHeaderLi = lastHeader;
-        }
-      }
-
-      if (!groupHeaderLi) {
-        groupHeaderLi = document.createElement('li');
+      if (lastRenderedGroupName !== name) {
+        const groupHeaderLi = document.createElement('li');
         groupHeaderLi.className = 'group-header';
         groupHeaderLi.textContent = name;
         list.appendChild(groupHeaderLi);
+        lastRenderedGroupName = name;
       }
 
       // Group Items
@@ -217,16 +240,15 @@ document.addEventListener('DOMContentLoaded', function () {
     const key = `${item.url}_${item.lastVisitTime}`;
     renderedItems.add(key);
 
-    const li = document.createElement('li');
-    li.className = 'history-item';
+    const li = rowTemplate.content.firstElementChild.cloneNode(true);
     li.dataset.url = item.url;
     li.dataset.time = item.lastVisitTime;
+    li.dataset.key = key;
     li.title = `${item.title || item.url}\n${item.url}`;
 
     // Icon container
-    const iconDiv = document.createElement('div');
-    iconDiv.className = 'item-icon';
-    const img = document.createElement('img');
+    const iconDiv = li.querySelector('[data-role="item-icon"]');
+    const img = iconDiv.querySelector('img');
     img.src = getFaviconUrl(item.url);
     img.onerror = () => {
       // Fallback SVG if favicon fails to load
@@ -237,66 +259,30 @@ document.addEventListener('DOMContentLoaded', function () {
         </svg>
       `;
     };
-    iconDiv.appendChild(img);
 
     // Title
-    const titleSpan = document.createElement('span');
-    titleSpan.className = 'item-title';
+    const titleSpan = li.querySelector('[data-role="item-title"]');
     titleSpan.textContent = item.title || item.url;
 
     // Time
-    const timeSpan = document.createElement('span');
-    timeSpan.className = 'item-time';
+    const timeSpan = li.querySelector('[data-role="item-time"]');
     timeSpan.textContent = formatTime(item.lastVisitTime);
-
-    // Delete Button
-    const deleteBtn = document.createElement('button');
-    deleteBtn.className = 'item-delete';
-    deleteBtn.title = 'Remove from history';
-    deleteBtn.innerHTML = `
-      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
-        <path d="M4 4l12 12M16 4L4 16"/>
-      </svg>
-    `;
-
-    deleteBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      chrome.history.deleteUrl({ url: item.url }, () => {
-        // Fade out and remove from list
-        li.style.opacity = '0';
-        li.style.transform = 'translateX(-10px)';
-        li.style.transition = 'opacity 0.2s, transform 0.2s';
-        setTimeout(() => {
-          li.remove();
-          renderedItems.delete(key); // Dọn dẹp key khỏi bộ đệm
-          // Check if group has items, if not, remove header
-          checkAndCleanHeaders();
-        }, 200);
-      });
-    });
-
-    li.appendChild(iconDiv);
-    li.appendChild(titleSpan);
-    li.appendChild(timeSpan);
-    li.appendChild(deleteBtn);
-
-    // Open link in new tab on click
-    li.addEventListener('click', () => {
-      chrome.tabs.create({ url: item.url });
-      window.close();
-    });
 
     return li;
   }
 
   // --- 2. Recently Closed Tab ---
-  function fetchRecentlyClosed(queryText = '') {
+  function fetchRecentlyClosed(queryText = '', requestId = activeRequestId) {
     if (!chrome.sessions || !chrome.sessions.getRecentlyClosed) {
       showEmptyState();
       return;
     }
 
     chrome.sessions.getRecentlyClosed({ maxResults: 25 }, function (sessions) {
+      if (requestId !== activeRequestId || activeTabId !== 'tab-closed' || queryText !== searchInput.value) {
+        return;
+      }
+
       if (!sessions || sessions.length === 0) {
         showEmptyState();
         return;
@@ -330,33 +316,26 @@ document.addEventListener('DOMContentLoaded', function () {
       filtered.forEach(session => {
         if (session.tab) {
           const tab = session.tab;
-          const li = createSessionRow(tab.title || tab.url, tab.url, session.lastModified, () => {
-            chrome.sessions.restore(tab.sessionId);
-            window.close();
-          });
+          const li = createSessionRow(tab.title || tab.url, tab.url, session.lastModified, tab.sessionId);
           list.appendChild(li);
         } else if (session.window) {
           const win = session.window;
           const label = `Window (${win.tabs.length} tabs)`;
           const firstTabUrl = win.tabs[0] ? win.tabs[0].url : '';
-          const li = createSessionRow(label, firstTabUrl, session.lastModified, () => {
-            chrome.sessions.restore(win.sessionId);
-            window.close();
-          }, true);
+          const li = createSessionRow(label, firstTabUrl, session.lastModified, win.sessionId, true);
           list.appendChild(li);
         }
       });
     });
   }
 
-  function createSessionRow(title, url, timestamp, restoreCallback, isWindow = false) {
-    const li = document.createElement('li');
-    li.className = 'history-item';
+  function createSessionRow(title, url, timestamp, sessionId, isWindow = false) {
+    const li = rowTemplate.content.firstElementChild.cloneNode(true);
+    li.dataset.sessionId = sessionId;
     li.title = isWindow ? title : `${title}\n${url}`;
 
     // Icon
-    const iconDiv = document.createElement('div');
-    iconDiv.className = 'item-icon';
+    const iconDiv = li.querySelector('[data-role="item-icon"]');
     if (isWindow) {
       iconDiv.innerHTML = `
         <svg viewBox="0 0 16 16" width="16" height="16">
@@ -364,7 +343,7 @@ document.addEventListener('DOMContentLoaded', function () {
         </svg>
       `;
     } else {
-      const img = document.createElement('img');
+      const img = iconDiv.querySelector('img');
       img.src = getFaviconUrl(url);
       img.onerror = () => {
         img.style.display = 'none';
@@ -374,24 +353,17 @@ document.addEventListener('DOMContentLoaded', function () {
           </svg>
         `;
       };
-      iconDiv.appendChild(img);
     }
 
     // Title
-    const titleSpan = document.createElement('span');
-    titleSpan.className = 'item-title';
+    const titleSpan = li.querySelector('[data-role="item-title"]');
     titleSpan.textContent = title;
 
     // Time
-    const timeSpan = document.createElement('span');
-    timeSpan.className = 'item-time';
+    const timeSpan = li.querySelector('[data-role="item-time"]');
     timeSpan.textContent = formatTime(timestamp * 1000); // sessions uses seconds
 
-    li.appendChild(iconDiv);
-    li.appendChild(titleSpan);
-    li.appendChild(timeSpan);
-
-    li.addEventListener('click', restoreCallback);
+    li.querySelector('[data-action="delete-history"]').classList.add('hidden');
 
     return li;
   }
@@ -399,6 +371,40 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
   // --- Helper Functions ---
+
+  function deleteHistoryRow(row) {
+    const key = row.dataset.key;
+    const url = row.dataset.url;
+    if (!url) return;
+
+    chrome.history.deleteUrl({ url: url }, () => {
+      row.style.opacity = '0';
+      row.style.transform = 'translateX(-10px)';
+      row.style.transition = 'opacity 0.2s, transform 0.2s';
+      setTimeout(() => {
+        const previous = row.previousElementSibling;
+        const next = row.nextElementSibling;
+
+        row.remove();
+        renderedItems.delete(key);
+        cleanHeaderAround(previous, next);
+      }, 200);
+    });
+  }
+
+  function cleanHeaderAround(previous, next) {
+    if (previous && previous.classList.contains('group-header') && (!next || next.classList.contains('group-header'))) {
+      if (!next && previous.textContent === lastRenderedGroupName) {
+        lastRenderedGroupName = null;
+      }
+      previous.remove();
+    }
+
+    if (renderedItems.size === 0) {
+      lastRenderedGroupName = null;
+      showEmptyState();
+    }
+  }
 
   function showEmptyState() {
     list.innerHTML = '';
@@ -443,31 +449,4 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
-  function checkAndCleanHeaders() {
-    const items = list.querySelectorAll('li');
-    let lastHeader = null;
-    let itemCountForHeader = 0;
-
-    items.forEach(item => {
-      if (item.classList.contains('group-header')) {
-        if (lastHeader && itemCountForHeader === 0) {
-          lastHeader.remove();
-        }
-        lastHeader = item;
-        itemCountForHeader = 0;
-      } else if (item.classList.contains('history-item')) {
-        itemCountForHeader++;
-      }
-    });
-
-    // Clean up trailing header
-    if (lastHeader && itemCountForHeader === 0) {
-      lastHeader.remove();
-    }
-
-    // If completely empty, show empty state
-    if (list.querySelectorAll('.history-item').length === 0) {
-      showEmptyState();
-    }
-  }
 });

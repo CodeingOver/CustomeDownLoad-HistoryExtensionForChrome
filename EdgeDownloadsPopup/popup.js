@@ -5,6 +5,8 @@ document.addEventListener('DOMContentLoaded', function () {
   const searchInput = document.getElementById('search-input');
   const searchContainer = document.getElementById('search-container');
   const clearSearchBtn = document.getElementById('clear-search-btn');
+  const footerContainer = document.getElementById('footer-container');
+  const rowTemplate = document.getElementById('download-row-template');
   
   const btnOpenFolder = document.getElementById('btn-open-folder');
   const btnToggleSearch = document.getElementById('btn-toggle-search');
@@ -16,7 +18,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
   let searchTimeout = null;
   let forceShowAll = false;
+  let loadRequestId = 0;
   const iconCache = new Map(); // Bộ đệm lưu trữ icon của tệp để tránh gọi API getFileIcon liên tục
+  const downloadItems = new Map();
 
   // Kết nối tới background để báo hiệu popup đang mở
   chrome.runtime.connect({ name: 'popup' });
@@ -42,6 +46,38 @@ document.addEventListener('DOMContentLoaded', function () {
     const hasCriticalChange = delta.state || delta.paused || delta.error || delta.filename || delta.exists;
     if (hasCriticalChange) {
       loadDownloads();
+    }
+  });
+
+  chrome.runtime.onMessage.addListener((message) => {
+    if (!message || !message.detail) return;
+
+    if (message.type === 'download-complete') {
+      loadDownloads(searchInput.value);
+      return;
+    }
+
+    if (message.type === 'download-progress') {
+      updateDownloadProgress(message.detail);
+    }
+  });
+
+  list.addEventListener('click', (event) => {
+    const actionElement = event.target.closest('[data-action]');
+    const row = event.target.closest('.download-item');
+    if (!row || !list.contains(row)) return;
+
+    const item = downloadItems.get(Number(row.dataset.id));
+    if (!item) return;
+
+    if (actionElement && list.contains(actionElement)) {
+      event.stopPropagation();
+      handleDownloadAction(actionElement.dataset.action, item, row);
+      return;
+    }
+
+    if (item.state === 'complete' && item.exists) {
+      openDownload(item.id);
     }
   });
 
@@ -105,8 +141,13 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
   // Main Loader
-  function loadDownloads(query = '') {
+  function loadDownloads(query = searchInput.value) {
+    const currentRequestId = ++loadRequestId;
+    const requestedQuery = query;
+
     chrome.runtime.sendMessage({ action: 'get-session-downloads' }, (response) => {
+      if (currentRequestId !== loadRequestId) return;
+
       const sessionIds = (response && response.sessionDownloadIds) || [];
 
       const searchOptions = { 
@@ -118,7 +159,10 @@ document.addEventListener('DOMContentLoaded', function () {
       }
 
       chrome.downloads.search(searchOptions, function (items) {
+        if (currentRequestId !== loadRequestId || requestedQuery !== searchInput.value) return;
+
         list.innerHTML = '';
+        downloadItems.clear();
         
         // Lọc bỏ các tệp tin chưa có tên (ví dụ tệp crdownload khi bắt đầu tải)
         let validItems = items.filter(item => item.filename);
@@ -133,9 +177,9 @@ document.addEventListener('DOMContentLoaded', function () {
           validItems = validItems.filter(item => 
             item.state === 'in_progress' || sessionIds.includes(item.id)
           );
-          document.getElementById('footer-container').classList.remove('hidden');
+          footerContainer.classList.remove('hidden');
         } else {
-          document.getElementById('footer-container').classList.add('hidden');
+          footerContainer.classList.add('hidden');
         }
 
         if (!validItems || validItems.length === 0) {
@@ -145,31 +189,30 @@ document.addEventListener('DOMContentLoaded', function () {
 
         emptyState.classList.add('hidden');
 
+        const fragment = document.createDocumentFragment();
         validItems.forEach(item => {
+          downloadItems.set(item.id, item);
           const row = createDownloadRow(item);
-          list.appendChild(row);
+          fragment.appendChild(row);
         });
+        list.appendChild(fragment);
       });
     });
   }
 
   // Row Renderer
   function createDownloadRow(item) {
-    const li = document.createElement('li');
-    li.className = 'download-item';
+    const li = rowTemplate.content.firstElementChild.cloneNode(true);
     li.dataset.id = item.id;
 
     // File name and extension
-    const fullPath = item.filename || '';
-    const filename = fullPath.substring(fullPath.lastIndexOf('\\') + 1) || 'Unknown File';
+    const filename = getBasename(item.filename);
     const ext = filename.split('.').pop().toLowerCase();
 
     // Check if the file is removed from disk
     const isRemoved = !item.exists && item.state === 'complete';
 
-    // File Icon
-    const iconDiv = document.createElement('div');
-    iconDiv.className = 'file-icon';
+    const iconDiv = li.querySelector('[data-role="file-icon"]');
     iconDiv.innerHTML = getFileIconSVG(ext, isRemoved);
 
     // Sử dụng bộ đệm iconCache nếu đã được tải để tránh gọi getFileIcon liên tục (tối ưu hóa tài nguyên OS)
@@ -194,6 +237,9 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         if (iconUrl) {
           iconCache.set(item.id, iconUrl); // Lưu vào bộ đệm
+          if (!li.isConnected || li.dataset.id !== String(item.id)) {
+            return;
+          }
           const img = document.createElement('img');
           img.src = iconUrl;
           img.alt = ext;
@@ -206,191 +252,138 @@ document.addEventListener('DOMContentLoaded', function () {
       });
     }
 
-    // Content container
-    const contentDiv = document.createElement('div');
-    contentDiv.className = 'item-content';
-
-    // Filename Title
-    const titleSpan = document.createElement('span');
-    titleSpan.className = 'file-name';
+    const titleSpan = li.querySelector('[data-role="file-name"]');
     titleSpan.textContent = filename;
     if (isRemoved) {
       titleSpan.classList.add('removed');
     }
 
-    contentDiv.appendChild(titleSpan);
-
     // State management
     if (item.state === 'in_progress') {
-      // Progress calculation
-      const received = item.bytesReceived;
-      const total = item.totalBytes;
-      const pct = total > 0 ? Math.round((received / total) * 100) : 0;
-      const sizeStr = formatBytes(received) + (total > 0 ? ` of ${formatBytes(total)}` : '');
-      
-      // Status label
-      const statusLabel = document.createElement('span');
-      statusLabel.className = 'status-label';
-      statusLabel.textContent = `${pct}% - ${sizeStr}`;
-      contentDiv.appendChild(statusLabel);
-
-      // Progress bar
-      const progressContainer = document.createElement('div');
-      progressContainer.className = 'progress-container';
-      const bg = document.createElement('div');
-      bg.className = 'progress-bar-bg';
-      const fill = document.createElement('div');
-      fill.className = 'progress-bar-fill';
-      fill.style.width = `${pct}%`;
-      bg.appendChild(fill);
-      progressContainer.appendChild(bg);
-      contentDiv.appendChild(progressContainer);
-
-      // Pause/Cancel controls
-      const controlsInline = document.createElement('div');
-      controlsInline.className = 'download-actions-inline';
-      
-      const pauseLink = document.createElement('span');
-      pauseLink.className = 'action-link';
-      pauseLink.textContent = item.paused ? 'Resume' : 'Pause';
-      pauseLink.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (item.paused) {
-          chrome.downloads.resume(item.id);
-        } else {
-          chrome.downloads.pause(item.id);
-        }
-      });
-
-      const cancelLink = document.createElement('span');
-      cancelLink.className = 'action-link';
-      cancelLink.textContent = 'Cancel';
-      cancelLink.addEventListener('click', (e) => {
-        e.stopPropagation();
-        chrome.downloads.cancel(item.id);
-      });
-
-      controlsInline.appendChild(pauseLink);
-      controlsInline.appendChild(cancelLink);
-      contentDiv.appendChild(controlsInline);
-
+      li.querySelector('[data-role="status-label"]').classList.remove('hidden');
+      li.querySelector('[data-role="progress-container"]').classList.remove('hidden');
+      li.querySelector('[data-role="inline-actions"]').classList.remove('hidden');
+      updateDownloadRowProgress(li, item);
     } else if (item.state === 'complete') {
       if (isRemoved) {
-        const statusLabel = document.createElement('span');
-        statusLabel.className = 'status-label';
+        const statusLabel = li.querySelector('[data-role="status-label"]');
+        statusLabel.classList.remove('hidden');
         statusLabel.textContent = 'Removed';
-        contentDiv.appendChild(statusLabel);
       } else {
-        const openLink = document.createElement('span');
-        openLink.className = 'open-link';
-        openLink.textContent = 'Open file';
-        openLink.addEventListener('click', (e) => {
-          e.stopPropagation();
-          chrome.downloads.open(item.id).catch((err) => {
-            console.warn("[popup.js] Không thể mở tệp:", err.message);
-          });
-        });
-        contentDiv.appendChild(openLink);
-
-        // Click on the entire row opens the file too
-        li.addEventListener('click', () => {
-          chrome.downloads.open(item.id).catch((err) => {
-            console.warn("[popup.js] Không thể mở tệp:", err.message);
-          });
-        });
+        li.querySelector('[data-action="open"]').classList.remove('hidden');
       }
     } else if (item.state === 'interrupted') {
-      const statusLabel = document.createElement('span');
-      statusLabel.className = 'status-label';
+      const statusLabel = li.querySelector('[data-role="status-label"]');
+      statusLabel.classList.remove('hidden');
       statusLabel.textContent = 'Failed / Interrupted';
-      contentDiv.appendChild(statusLabel);
     }
-
-    // Hover Controls (Show in folder, Erase from history list)
-    const controlsDiv = document.createElement('div');
-    controlsDiv.className = 'item-controls';
 
     // Show in folder button (only if download is complete and not removed)
     if (item.state === 'complete' && !isRemoved) {
-      const showFolderBtn = document.createElement('button');
-      showFolderBtn.className = 'control-btn';
-      showFolderBtn.title = 'Show in folder';
-      showFolderBtn.innerHTML = `
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
-          <path d="M2.5 4.5A1.5 1.5 0 0 1 4 3h3.5a1.5 1.5 0 0 1 1 .4l1.2 1.2a1.5 1.5 0 0 0 1 .4H16a1.5 1.5 0 0 1 1.5 1.5v7A1.5 1.5 0 0 1 16 15H4a1.5 1.5 0 0 1-1.5-1.5v-9z"/>
-        </svg>
-      `;
-      showFolderBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        chrome.downloads.show(item.id);
-      });
-      controlsDiv.appendChild(showFolderBtn);
+      li.querySelector('[data-action="show-folder"]').classList.remove('hidden');
     }
 
-    // Erase/Delete button (trash)
-    const eraseBtn = document.createElement('button');
-    eraseBtn.className = 'control-btn btn-delete';
-    
     // Check if the file still exists to decide function
     const fileExists = item.state === 'complete' && item.exists;
-    if (fileExists) {
-      eraseBtn.title = 'Delete file';
-      eraseBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        chrome.downloads.removeFile(item.id, () => {
-          if (chrome.runtime.lastError) {
-            // Fallback to erase if removing file fails
-            chrome.downloads.erase({ id: item.id }, () => {
-              // Fade out animation
-              li.style.opacity = '0';
-              li.style.transform = 'translateX(-10px)';
-              li.style.transition = 'opacity 0.2s, transform 0.2s';
-              setTimeout(() => {
-                li.remove();
-                if (list.querySelectorAll('.download-item').length === 0) {
-                  emptyState.classList.remove('hidden');
-                }
-              }, 200);
-            });
-          } else {
-            // Success: update the item state to exists = false, and re-render the row
-            item.exists = false;
-            const newLi = createDownloadRow(item);
-            li.replaceWith(newLi);
-          }
-        });
-      });
-    } else {
-      eraseBtn.title = 'Remove from history';
-      eraseBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        chrome.downloads.erase({ id: item.id }, () => {
-          // Fade out animation
-          li.style.opacity = '0';
-          li.style.transform = 'translateX(-10px)';
-          li.style.transition = 'opacity 0.2s, transform 0.2s';
-          setTimeout(() => {
-            li.remove();
-            if (list.querySelectorAll('.download-item').length === 0) {
-              emptyState.classList.remove('hidden');
-            }
-          }, 200);
-        });
-      });
-    }
-
-    eraseBtn.innerHTML = `
-      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
-        <path d="M3 5h14M7 5V3.5A1.5 1.5 0 0 1 8.5 2h3A1.5 1.5 0 0 1 13 3.5V5m2.5 0v10.5a1.5 1.5 0 0 1-1.5 1.5H6a1.5 1.5 0 0 1-1.5-1.5V5h11z"/>
-      </svg>
-    `;
-    controlsDiv.appendChild(eraseBtn);
-
-    li.appendChild(iconDiv);
-    li.appendChild(contentDiv);
-    li.appendChild(controlsDiv);
+    li.querySelector('[data-action="delete"]').title = fileExists ? 'Delete file' : 'Remove from history';
 
     return li;
+  }
+
+  function handleDownloadAction(action, item, row) {
+    if (action === 'toggle-pause') {
+      if (item.paused) {
+        chrome.downloads.resume(item.id);
+      } else {
+        chrome.downloads.pause(item.id);
+      }
+    } else if (action === 'cancel') {
+      chrome.downloads.cancel(item.id);
+    } else if (action === 'open') {
+      openDownload(item.id);
+    } else if (action === 'show-folder') {
+      chrome.downloads.show(item.id);
+    } else if (action === 'delete') {
+      deleteDownload(item, row);
+    }
+  }
+
+  function openDownload(id) {
+    chrome.downloads.open(id).catch((err) => {
+      console.warn("[popup.js] Không thể mở tệp:", err.message);
+    });
+  }
+
+  function deleteDownload(item, row) {
+    const fileExists = item.state === 'complete' && item.exists;
+    if (fileExists) {
+      chrome.downloads.removeFile(item.id, () => {
+        if (chrome.runtime.lastError) {
+          eraseDownload(item, row);
+          return;
+        }
+
+        item.exists = false;
+        downloadItems.set(item.id, item);
+        row.replaceWith(createDownloadRow(item));
+      });
+      return;
+    }
+
+    eraseDownload(item, row);
+  }
+
+  function eraseDownload(item, row) {
+    chrome.downloads.erase({ id: item.id }, () => {
+      fadeOutRow(row, () => {
+        downloadItems.delete(item.id);
+        if (list.children.length === 0) {
+          emptyState.classList.remove('hidden');
+        }
+      });
+    });
+  }
+
+  function fadeOutRow(row, afterRemove) {
+    row.style.opacity = '0';
+    row.style.transform = 'translateX(-10px)';
+    row.style.transition = 'opacity 0.2s, transform 0.2s';
+    setTimeout(() => {
+      row.remove();
+      afterRemove();
+    }, 200);
+  }
+
+  function updateDownloadProgress(item) {
+    const row = list.querySelector(`.download-item[data-id="${item.id}"]`);
+    if (!row) return;
+
+    const cachedItem = downloadItems.get(item.id) || {};
+    const mergedItem = { ...cachedItem, ...item };
+    downloadItems.set(item.id, mergedItem);
+    updateDownloadRowProgress(row, mergedItem);
+  }
+
+  function updateDownloadRowProgress(row, item) {
+    const received = item.bytesReceived || 0;
+    const total = item.totalBytes || 0;
+    const pct = total > 0 ? Math.round((received / total) * 100) : 0;
+    const sizeStr = formatBytes(received) + (total > 0 ? ` of ${formatBytes(total)}` : '');
+
+    const statusLabel = row.querySelector('[data-role="status-label"]');
+    if (statusLabel) {
+      statusLabel.textContent = `${pct}% - ${sizeStr}`;
+    }
+
+    const fill = row.querySelector('[data-role="progress-fill"]');
+    if (fill) {
+      fill.style.width = `${pct}%`;
+    }
+
+    const pauseLink = row.querySelector('[data-action="toggle-pause"]');
+    if (pauseLink) {
+      pauseLink.textContent = item.paused ? 'Resume' : 'Pause';
+    }
   }
 
   // Default generic document fallback icon
@@ -404,6 +397,12 @@ document.addEventListener('DOMContentLoaded', function () {
     `;
   }
 
+  function getBasename(path) {
+    if (!path) return 'Unknown File';
+    const parts = path.split(/[/\\]/);
+    return parts[parts.length - 1] || 'Unknown File';
+  }
+
   // Format File Bytes
   function formatBytes(bytes, decimals = 2) {
     if (bytes === 0) return '0 Bytes';
@@ -413,39 +412,4 @@ document.addEventListener('DOMContentLoaded', function () {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
   }
-
-  // Polling mượt mà thời gian thực khi popup đang mở
-  const progressInterval = setInterval(() => {
-    chrome.downloads.search({ state: 'in_progress' }, (items) => {
-      if (!items || items.length === 0) {
-        return;
-      }
-      items.forEach(item => {
-        const row = list.querySelector(`.download-item[data-id="${item.id}"]`);
-        if (row) {
-          const received = item.bytesReceived;
-          const total = item.totalBytes;
-          const pct = total > 0 ? Math.round((received / total) * 100) : 0;
-          const sizeStr = formatBytes(received) + (total > 0 ? ` of ${formatBytes(total)}` : '');
-          
-          // Cập nhật nhãn phần trăm và dung lượng
-          const statusLabel = row.querySelector('.status-label');
-          if (statusLabel) {
-            statusLabel.textContent = `${pct}% - ${sizeStr}`;
-          }
-          
-          // Cập nhật thanh tiến trình
-          const fill = row.querySelector('.progress-bar-fill');
-          if (fill) {
-            fill.style.width = `${pct}%`;
-          }
-        }
-      });
-    });
-  }, 2000);
-
-  // Dọn dẹp interval khi popup đóng
-  window.addEventListener('unload', () => {
-    clearInterval(progressInterval);
-  });
 });

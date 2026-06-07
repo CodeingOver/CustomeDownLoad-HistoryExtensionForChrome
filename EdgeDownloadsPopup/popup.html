@@ -73,6 +73,38 @@
     <button class="see-more-btn" id="btn-see-more">See more</button>
   </div>
 
+  <template id="download-row-template">
+    <li class="download-item">
+      <div class="file-icon" data-role="file-icon"></div>
+      <div class="item-content">
+        <span class="file-name" data-role="file-name"></span>
+        <span class="status-label hidden" data-role="status-label"></span>
+        <span class="open-link hidden" data-action="open">Open file</span>
+        <div class="progress-container hidden" data-role="progress-container">
+          <div class="progress-bar-bg">
+            <div class="progress-bar-fill" data-role="progress-fill"></div>
+          </div>
+        </div>
+        <div class="download-actions-inline hidden" data-role="inline-actions">
+          <span class="action-link" data-action="toggle-pause"></span>
+          <span class="action-link" data-action="cancel">Cancel</span>
+        </div>
+      </div>
+      <div class="item-controls">
+        <button class="control-btn hidden" data-action="show-folder" title="Show in folder">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+            <path d="M2.5 4.5A1.5 1.5 0 0 1 4 3h3.5a1.5 1.5 0 0 1 1 .4l1.2 1.2a1.5 1.5 0 0 0 1 .4H16a1.5 1.5 0 0 1 1.5 1.5v7A1.5 1.5 0 0 1 16 15H4a1.5 1.5 0 0 1-1.5-1.5v-9z"/>
+          </svg>
+        </button>
+        <button class="control-btn btn-delete" data-action="delete">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+            <path d="M3 5h14M7 5V3.5A1.5 1.5 0 0 1 8.5 2h3A1.5 1.5 0 0 1 13 3.5V5m2.5 0v10.5a1.5 1.5 0 0 1-1.5 1.5H6a1.5 1.5 0 0 1-1.5-1.5V5h11z"/>
+          </svg>
+        </button>
+      </div>
+    </li>
+  </template>
+
   <script src="popup.js"></script>
 </body>
 </html>

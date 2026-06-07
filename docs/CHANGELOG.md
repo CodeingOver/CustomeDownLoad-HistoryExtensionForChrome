@@ -4,6 +4,33 @@ Tài liệu này ghi lại toàn bộ lịch sử các phiên bản phát hành 
 
 ---
 
+### [v1.2.16] - 2026-06-07
+
+#### - **[Sửa lỗi]**
+- Khắc phục lỗi `EdgeDownloadsPopup` tự động mở popup khi vừa mở Chrome:
+  - Bổ sung bộ lọc trong `background.js` để không gọi `chrome.action.openPopup()` cho các lượt tải đã tồn tại trước thời điểm Service Worker khởi động hoặc các sự kiện `onCreated` xuất hiện trong giai đoạn quét khởi động ban đầu.
+  - Giữ nguyên hành vi tự mở popup khi người dùng thật sự bắt đầu một lượt tải mới sau khi quá trình khởi động hoàn tất.
+
+#### - **[Cập nhật]**
+- Đồng bộ nâng phiên bản của cả hai tiện ích mở rộng lên `1.2.16` tại các tệp `manifest.json`.
+
+### [v1.2.15] - 2026-06-07
+
+#### - **[Sửa lỗi]**
+- Khử race condition trong tìm kiếm lịch sử của `EdgeHistoryPopup`:
+  - Bổ sung mã định danh truy vấn (`activeRequestId`) cho mỗi lần tải tab hoặc tìm kiếm mới, giúp callback bất đồng bộ cũ của `chrome.history.search` và `chrome.sessions.getRecentlyClosed` tự bỏ qua nếu người dùng đã nhập truy vấn mới hoặc đổi tab.
+  - Thay thế cơ chế dọn tiêu đề nhóm rỗng bằng kiểm tra cục bộ quanh dòng vừa xóa (`previousElementSibling` và `nextElementSibling`), giảm thao tác dọn dẹp header từ quét toàn danh sách xuống xử lý O(1).
+
+#### - **[Cập nhật]**
+- Tối ưu hóa hiệu năng DOM cho cả hai popup:
+  - Chuyển các hàng tải xuống và lịch sử sang dựng từ thẻ `<template>` trong `popup.html`, giảm chi phí tạo cấu trúc DOM thủ công khi danh sách dài.
+  - Áp dụng Event Delegation trên `ul#downloads-list` và `ul#history-list`, gom thao tác click của các nút Open, Pause, Cancel, Show folder, Delete và Restore về một listener cha thay vì gắn listener riêng cho từng item.
+- Chuyển tiến trình tải xuống của `EdgeDownloadsPopup` từ polling cục bộ sang event-driven:
+  - `background.js` phát tin tiến trình đã được throttle qua `chrome.runtime.sendMessage`.
+  - `popup.js` lắng nghe `download-progress` và cập nhật trực tiếp nhãn phần trăm, dung lượng, thanh tiến trình và trạng thái Pause/Resume của đúng dòng đang tải.
+  - Loại bỏ hoàn toàn `setInterval` 2 giây trong popup Downloads, tránh gọi `chrome.downloads.search({ state: 'in_progress' })` định kỳ khi không cần thiết.
+- Đồng bộ nâng phiên bản của cả hai tiện ích mở rộng lên `1.2.15` tại các tệp `manifest.json`.
+
 ### [v1.2.14] - 2026-06-07
 
 #### - **[Sửa lỗi]**

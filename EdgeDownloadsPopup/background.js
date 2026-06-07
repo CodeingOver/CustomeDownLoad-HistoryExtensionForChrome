@@ -7,6 +7,10 @@ let isGlowState = false;
 let isCompleteState = false;
 let progressInterval = null;
 let completeIconImageDataCache = null; // Bộ đệm lưu trữ dữ liệu ảnh hoàn thành để tránh dựng lại Canvas liên tục
+const serviceWorkerStartedAt = Date.now();
+const STARTUP_AUTO_OPEN_GRACE_MS = 5000;
+const RESTORED_DOWNLOAD_SKEW_MS = 2000;
+let hasCompletedStartupDownloadScan = false;
 
 // Theo dõi trạng thái đóng/mở của cửa sổ popup bằng cơ chế Port Connection
 chrome.runtime.onConnect.addListener((port) => {
@@ -44,14 +48,29 @@ chrome.downloads.onCreated.addListener((item) => {
     error: item.error || null
   };
   
-  // Tự động hiển thị popup khi bắt đầu tải xuống
-  chrome.action.openPopup().catch((err) => {
-    console.warn("Could not open popup automatically:", err);
-  });
+  // Chỉ tự động hiển thị popup cho lượt tải mới, không mở khi Chrome khôi phục download cũ lúc startup.
+  if (shouldAutoOpenPopupForCreatedDownload(item)) {
+    chrome.action.openPopup().catch((err) => {
+      console.warn("Could not open popup automatically:", err);
+    });
+  }
 
   updateBadgeAndAnimation();
   broadcastProgress();
 });
+
+function shouldAutoOpenPopupForCreatedDownload(item) {
+  const startedAt = item.startTime ? Date.parse(item.startTime) : NaN;
+  if (!Number.isNaN(startedAt) && startedAt < serviceWorkerStartedAt - RESTORED_DOWNLOAD_SKEW_MS) {
+    return false;
+  }
+
+  if (!hasCompletedStartupDownloadScan && Date.now() - serviceWorkerStartedAt < STARTUP_AUTO_OPEN_GRACE_MS) {
+    return false;
+  }
+
+  return true;
+}
 
 // Listen for changes in downloads
 chrome.downloads.onChanged.addListener((delta) => {
@@ -381,6 +400,14 @@ function broadcastProgress() {
   });
 }
 
+// Send progress detail to extension views such as the popup
+function sendProgressToPopup(item, type = 'download-progress') {
+  chrome.runtime.sendMessage({
+    type: type,
+    detail: item
+  }).catch(() => {});
+}
+
 // Send progress detail to a specific tab
 function sendProgressToTab(tabId, item, type = 'download-progress') {
   chrome.tabs.sendMessage(tabId, {
@@ -391,6 +418,8 @@ function sendProgressToTab(tabId, item, type = 'download-progress') {
 
 // Broadcast progress to the currently active tab (handling last focused window to avoid popup window conflict)
 function broadcastProgressToActiveTab(item, type = 'download-progress') {
+  sendProgressToPopup(item, type);
+
   chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
     if (tabs && tabs.length > 0 && tabs[0].id) {
       sendProgressToTab(tabs[0].id, item, type);
@@ -527,4 +556,5 @@ chrome.downloads.search({ state: 'in_progress' }, (items) => {
   if (items && items.length > 0) {
     ensureOffscreenDocument();
   }
+  hasCompletedStartupDownloadScan = true;
 });
