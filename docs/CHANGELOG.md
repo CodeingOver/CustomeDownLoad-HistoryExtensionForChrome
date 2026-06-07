@@ -4,6 +4,45 @@ Tài liệu này ghi lại toàn bộ lịch sử các phiên bản phát hành 
 
 ---
 
+### [v1.2.7] - 2026-06-07
+
+#### - **[Thêm mới]**
+- Bổ sung cơ chế Port Connection (`chrome.runtime.connect`) giữa popup và Service Worker:
+  - Cho phép Service Worker nhận diện chính xác thời điểm cửa sổ popup đang mở.
+  - Khi tệp tin tải xong, nếu người dùng vẫn đang mở xem popup trực tiếp thì **không hiển thị Badge checkmark hoàn thành** nữa để tránh gây rối mắt không cần thiết.
+
+#### - **[Cập nhật]**
+- Tinh chỉnh biểu tượng hoàn thành (checkmark) nổi bật và sáng rõ hơn:
+  - Đổi màu nền của Badge sang màu xanh lá cây sáng rực Fluent (`#10c15c`).
+  - Thay đổi ký tự dấu tích sang dạng đậm nét (`✔` - Heavy Check Mark) để nâng cao độ tương phản và dễ nhận biết trên thanh công cụ.
+- Phóng to kích thước hiển thị của biểu tượng thanh công cụ (Toolbar Icons):
+  - Viết script PowerShell tự động phát hiện và cắt bỏ hoàn toàn các phần viền lề trong suốt (transparent border padding) thừa thãi của các tệp PNG gốc (`arrow_download_filled_icon_201617.png` và `history_filled_icon_202154.png`).
+  - Xuất bản lại 4 kích cỡ icon PNG tiêu chuẩn (16, 32, 48, 128) căng đầy khung hình 100%, giúp hai biểu tượng Lịch sử và Tải xuống to rõ ràng và khớp kích thước các biểu tượng hệ thống của Google.
+  - Đồng bộ tái tạo bộ ảnh biểu tượng nhấp nháy phát sáng (`icon_glow*.png`) từ tệp PNG gốc đã được cắt lề và đổi màu để đảm bảo hoạt ảnh chuyển động khi tải xuống mượt mà tuyệt đối, không bị giật hay nhảy lệch khung hình.
+
+#### - **[Cập nhật]**
+- Đồng bộ nâng phiên bản của cả hai tiện ích mở rộng lên phiên bản mới `1.2.7`.
+
+---
+
+### [v1.2.6] - 2026-06-07
+
+#### - **[Thêm mới]**
+- Tích hợp Badge hoàn thành (Completion Badge) kiểu Microsoft Edge:
+  - Khi một tệp tin tải xong và không còn tác vụ tải nào khác đang chạy, Badge trên biểu tượng thanh công cụ sẽ tự động chuyển sang màu xanh lá cây (`#21a366`) và hiển thị biểu tượng checkmark (`✓`).
+  - Gửi tin nhắn `clear-complete-badge` từ [popup.js](file:///d:/CodePython/CustomeExtensionForChrome/EdgeDownloadsPopup/popup.js) khi người dùng mở popup để tự động xóa đi Badge hoàn thành này, giống như cách Edge xử lý.
+
+#### - **[Sửa lỗi]**
+- Khắc phục lỗi card Toast của Content Script bị kẹt ở `0%` khi mở popup:
+  - Cải tiến hàm truy vấn tab `broadcastProgressToActiveTab` trong [background.js](file:///d:/CodePython/CustomeExtensionForChrome/EdgeDownloadsPopup/background.js) sử dụng thuộc tính `lastFocusedWindow: true` thay vì `currentWindow: true` để tránh nhầm lẫn cửa sổ popup đang mở là cửa sổ trình duyệt chính.
+- Khắc phục việc bong bóng tải mặc định (Download Bubble) của Google Chrome hiển thị lại:
+  - Gọi bổ sung hàm `chrome.downloads.setUiOptions({ enabled: false })` ngay trong sự kiện `chrome.downloads.onCreated` tại [background.js](file:///d:/CodePython/CustomeExtensionForChrome/EdgeDownloadsPopup/background.js) để gia cố việc chặn giao diện tải xuống gốc trên mọi trang web.
+
+#### - **[Cập nhật]**
+- Đồng bộ nâng phiên bản của cả hai tiện ích mở rộng lên phiên bản mới `1.2.6`.
+
+---
+
 ### [v1.2.5] - 2026-06-07
 
 #### - **[Sửa lỗi]**

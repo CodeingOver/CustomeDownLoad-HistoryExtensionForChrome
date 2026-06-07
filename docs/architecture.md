@@ -81,10 +81,10 @@ Hệ thống chia làm hai thành phần lớn tương ứng với hai tiện í
 ### Luồng 2: Theo dõi và cập nhật tiến trình tải xuống
 1. Người dùng bắt đầu tải xuống một tệp tin.
 2. Trình duyệt kích hoạt sự kiện `chrome.downloads.onCreated`.
-3. Background Service Worker nhận sự kiện, tự động lưu ID tệp tải vào danh sách phiên làm việc hiện tại (`sessionDownloadIds`), gọi `chrome.action.openPopup()` để tự động hiển thị menu danh sách tải xuống, khởi động hoạt ảnh nhấp nháy phát sáng (glow icon) và hiển thị % tải xuống trực tiếp trên thanh công cụ (Badge).
-4. Sự kiện `chrome.downloads.onChanged` liên tục kích hoạt. Service Worker truy vấn dữ liệu gốc của trình duyệt thông qua `chrome.downloads.search` (lọc bỏ các tệp đang tạm dừng `paused` hoặc chưa bắt đầu nhận dữ liệu `bytesReceived === 0`) để tính toán chính xác phần trăm tiến độ thực tế, cập nhật Badge và gửi tin nhắn tới Content Script trên tab active.
+3. Background Service Worker nhận sự kiện, tự động thiết lập vô hiệu hóa bong bóng tải gốc bằng `setUiOptions`, lưu ID tệp tải vào danh sách phiên làm việc hiện tại (`sessionDownloadIds`), gọi `chrome.action.openPopup()` để tự động hiển thị menu danh sách tải xuống, khởi động hoạt ảnh nhấp nháy phát sáng (glow icon) và hiển thị % tải xuống trực tiếp trên thanh công cụ (Badge).
+4. Sự kiện `chrome.downloads.onChanged` liên tục kích hoạt. Service Worker truy vấn dữ liệu gốc của trình duyệt thông qua `chrome.downloads.search` (lọc các tệp tạm dừng hoặc chưa bắt đầu nhận dữ liệu) để tính toán chính xác phần trăm tiến độ thực tế, cập nhật Badge và gửi tin nhắn tới Content Script trên tab active (sử dụng query tìm kiếm `lastFocusedWindow` để định vị đúng tab nền, tránh xung đột khi cửa sổ popup đang mở).
 5. Content Script vẽ card Fluent Toast bọc Shadow DOM ở góc trên bên phải, hiển thị tiến trình xoay tròn Circular Progress.
-6. Khi hoàn tất, Service Worker gửi tin nhắn hoàn thành, kích hoạt hoạt ảnh hạt màu nổ (particle explode) trên card Toast của Content Script, tự động biến mất sau 5 giây.
+6. Khi hoàn tất, Service Worker gửi tin nhắn hoàn thành, kích hoạt hoạt ảnh hạt màu nổ (particle explode) trên card Toast của Content Script, tự động biến mất sau 5 giây. Đồng thời, nếu cửa sổ popup không mở, thiết lập Badge trên biểu tượng thanh công cụ chuyển thành màu xanh lá cây sáng nổi bật (`#10c15c`) và hiển thị dấu checkmark đậm (`✔`) báo hiệu hoàn thành tải xuống. Badge này sẽ được xóa đi ngay khi người dùng mở popup.
 
 ### Luồng 3: Thu gọn và mở rộng danh sách tải xuống (See more)
 1. Khi người dùng click biểu tượng Downloads, Popup gửi tin nhắn lấy danh sách ID của phiên (`get-session-downloads`) từ Service Worker.

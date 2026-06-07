@@ -17,6 +17,12 @@ document.addEventListener('DOMContentLoaded', function () {
   let searchTimeout = null;
   let forceShowAll = false;
 
+  // Kết nối tới background để báo hiệu popup đang mở
+  chrome.runtime.connect({ name: 'popup' });
+
+  // Clear complete badge if shown when user opens popup
+  chrome.runtime.sendMessage({ action: 'clear-complete-badge' });
+
   // Initial load
   loadDownloads();
 

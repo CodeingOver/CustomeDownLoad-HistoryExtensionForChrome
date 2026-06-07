@@ -1,7 +1,19 @@
 let activeDownloads = {};
 let sessionDownloadIds = new Set();
+let wasDownloading = false;
+let isPopupOpen = false;
 let animationInterval = null;
 let isGlowState = false;
+
+// Theo dõi trạng thái đóng/mở của cửa sổ popup bằng cơ chế Port Connection
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name === 'popup') {
+    isPopupOpen = true;
+    port.onDisconnect.addListener(() => {
+      isPopupOpen = false;
+    });
+  }
+});
 
 // Initialize action badge style
 chrome.action.setBadgeBackgroundColor({ color: '#0078d4' });
@@ -13,6 +25,11 @@ if (chrome.downloads.setUiOptions) {
 
 // Listen for new downloads
 chrome.downloads.onCreated.addListener((item) => {
+  // Đảm bảo vô hiệu hóa bong bóng tải mặc định của Chrome
+  if (chrome.downloads.setUiOptions) {
+    chrome.downloads.setUiOptions({ enabled: false });
+  }
+
   sessionDownloadIds.add(item.id);
   activeDownloads[item.id] = {
     id: item.id,
@@ -90,24 +107,40 @@ function handleDelta(id, delta) {
 // Cập nhật badge tiến độ tải xuống và hiệu ứng nhấp nháy từ dữ liệu gốc của trình duyệt
 function updateBadgeAndAnimation() {
   chrome.downloads.search({ state: 'in_progress' }, (items) => {
-    // Chỉ tính toán tiến trình cho các tệp đang thực sự tải (loại bỏ tệp tạm dừng)
-    let activeItems = (items || []).filter(item => !item.paused);
+    // Lọc bằng sessionDownloadIds để chỉ tính toán tiến trình cho các tệp đang tải trong phiên hiện tại
+    let activeItems = (items || []).filter(item => 
+      !item.paused && sessionDownloadIds.has(item.id)
+    );
     
-    if (activeItems.length === 0) {
-      chrome.action.setBadgeText({ text: '' });
-      stopAnimation();
-      return;
-    }
-
-    // Đang có tệp tải xuống: kích hoạt hoạt ảnh nhấp nháy
-    startAnimation();
-
     // Loại bỏ các tệp tin chưa bắt đầu nhận dữ liệu (bytesReceived === 0) 
     // để tránh các tệp bị nghẽn/chờ xác nhận kéo tụt chỉ số phần trăm của tệp đang chạy.
     const downloadingItems = activeItems.filter(item => item.bytesReceived > 0);
     if (downloadingItems.length > 0) {
       activeItems = downloadingItems;
     }
+
+    if (activeItems.length === 0) {
+      if (wasDownloading) {
+        // Vừa tải xong: hiển thị Badge checkmark màu xanh lá cây (chỉ hiển thị nếu popup không mở)
+        if (!isPopupOpen) {
+          showCompletionBadge();
+        }
+        wasDownloading = false;
+      } else {
+        // Kiểm tra để không xóa nhầm Badge checkmark đang hiển thị
+        chrome.action.getBadgeText({}, (text) => {
+          if (text !== '✓' && text !== '✔') {
+            chrome.action.setBadgeText({ text: '' });
+          }
+        });
+      }
+      stopAnimation();
+      return;
+    }
+
+    // Đang tải: đặt flag wasDownloading = true
+    wasDownloading = true;
+    startAnimation();
 
     let totalBytes = 0;
     let bytesReceived = 0;
@@ -122,6 +155,9 @@ function updateBadgeAndAnimation() {
       }
     });
 
+    // Reset màu nền Badge về màu xanh dương mặc định khi đang tải
+    chrome.action.setBadgeBackgroundColor({ color: '#0078d4' });
+
     if (indeterminate || totalBytes === 0) {
       chrome.action.setBadgeText({ text: '...' });
     } else {
@@ -129,6 +165,12 @@ function updateBadgeAndAnimation() {
       chrome.action.setBadgeText({ text: `${percent}%` });
     }
   });
+}
+
+// Hiển thị Badge checkmark xanh lá cây sáng nổi bật khi hoàn thành tải xuống
+function showCompletionBadge() {
+  chrome.action.setBadgeBackgroundColor({ color: '#10c15c' });
+  chrome.action.setBadgeText({ text: '✔' });
 }
 
 // Khởi chạy hoạt ảnh biểu tượng nhấp nháy phát sáng (Glow)
@@ -182,11 +224,17 @@ function sendProgressToTab(tabId, item, type = 'download-progress') {
   }).catch(() => {}); // Ignore errors if tab doesn't have content script loaded
 }
 
-// Broadcast progress to the currently active tab
+// Broadcast progress to the currently active tab (handling last focused window to avoid popup window conflict)
 function broadcastProgressToActiveTab(item, type = 'download-progress') {
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+  chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
     if (tabs && tabs.length > 0 && tabs[0].id) {
       sendProgressToTab(tabs[0].id, item, type);
+    } else {
+      chrome.tabs.query({ active: true }, (tabs) => {
+        if (tabs && tabs.length > 0 && tabs[0].id) {
+          sendProgressToTab(tabs[0].id, item, type);
+        }
+      });
     }
   });
 }
@@ -204,6 +252,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     chrome.downloads.open(request.id);
   } else if (request.action === 'get-session-downloads') {
     sendResponse({ sessionDownloadIds: Array.from(sessionDownloadIds) });
+  } else if (request.action === 'clear-complete-badge') {
+    chrome.action.getBadgeText({}, (text) => {
+      if (text === '✓' || text === '✔') {
+        chrome.action.setBadgeText({ text: '' });
+      }
+    });
   }
   return true;
 });
