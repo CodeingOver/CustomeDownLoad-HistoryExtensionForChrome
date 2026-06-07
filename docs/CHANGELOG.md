@@ -4,6 +4,18 @@ Tài liệu này ghi lại toàn bộ lịch sử các phiên bản phát hành 
 
 ---
 
+### [v1.2.1] - 2026-06-07
+
+#### - **[Thêm mới]**
+- Tích hợp cấu hình chặn bong bóng tải xuống mặc định của trình duyệt:
+  - Bổ sung quyền `"downloads.ui"` trong tệp [manifest.json của EdgeDownloadsPopup](file:///d:/CodePython/CustomeExtensionForChrome/EdgeDownloadsPopup/manifest.json).
+  - Khởi chạy hàm `chrome.downloads.setUiOptions({ enabled: false })` trong [background.js](file:///d:/CodePython/CustomeExtensionForChrome/EdgeDownloadsPopup/background.js) khi tiện ích khởi động để vô hiệu hóa hoàn toàn bong bóng tải gốc (Download Bubble) của Chrome.
+  - Điều này giúp icon tải xuống gốc của Chrome đứng yên, không hiện lên và không nhấp nháy, nhường toàn bộ giao diện thông báo và hoạt ảnh tải xuống Fluent Toast cho tiện ích của chúng ta.
+- **[Cập nhật]**
+  - Đồng bộ nâng phiên bản của cả hai tiện ích mở rộng lên phiên bản vá lỗi mới `1.2.1`.
+
+---
+
 ### [v1.2.0] - 2026-06-07
 
 #### - **[Thêm mới]**

@@ -5,6 +5,11 @@ let isGlowState = false;
 // Initialize action badge style
 chrome.action.setBadgeBackgroundColor({ color: '#0078d4' });
 
+// Disable native Chrome download shelf / bubble UI
+if (chrome.downloads.setUiOptions) {
+  chrome.downloads.setUiOptions({ enabled: false });
+}
+
 // Listen for new downloads
 chrome.downloads.onCreated.addListener((item) => {
   activeDownloads[item.id] = {

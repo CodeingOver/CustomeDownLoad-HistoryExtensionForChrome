@@ -108,6 +108,7 @@ Hệ thống sử dụng các API gốc của trình duyệt Chrome:
 - `chrome.downloads.show`: Hiển thị vị trí tệp tin trong thư mục lưu trữ (File Explorer).
 - `chrome.downloads.erase`: Xóa tệp tin khỏi lịch sử tải xuống.
 - `chrome.downloads.showDefaultFolder`: Mở thư mục tải xuống mặc định của hệ điều hành.
+- `chrome.downloads.setUiOptions`: Cấu hình tắt/bật bong bóng tải xuống mặc định của trình duyệt.
 - `chrome.action.setIcon`: Thay đổi biểu tượng (icon) trên thanh công cụ động.
 - `chrome.action.setBadgeText`: Cập nhật văn bản chỉ số badge (phần trăm).
 - `chrome.runtime.onMessage.addListener`: Lắng nghe tin nhắn trao đổi dữ liệu giữa các thành phần.
