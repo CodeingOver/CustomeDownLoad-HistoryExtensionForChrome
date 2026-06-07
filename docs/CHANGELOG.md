@@ -4,6 +4,59 @@ Tài liệu này ghi lại toàn bộ lịch sử các phiên bản phát hành 
 
 ---
 
+### [v1.2.4] - 2026-06-07
+
+#### - **[Sửa lỗi]**
+- Khắc phục lỗi giao diện popup bị kéo dài quá mức khi chỉ có ít tệp tin hiển thị:
+  - Thay đổi thuộc tính chiều cao của `body` từ cố định (`height: 550px`) sang chiều cao tối đa (`max-height: 550px`) trong [popup.css](file:///d:/CodePython/CustomeExtensionForChrome/EdgeDownloadsPopup/popup.css).
+  - Giúp cửa sổ popup tự động co giãn mượt mà bao bọc vừa vặn với nội dung hiển thị thực tế (ví dụ khi chỉ có 1 tệp đang tải và nút "See more" chân trang), loại bỏ hoàn toàn khoảng trống đen thừa thãi bên dưới.
+  - Vẫn đảm bảo khả năng giới hạn chiều cao tối đa và kích hoạt thanh cuộn dọc cuộn nội dung khi danh sách tệp tin vượt quá 550px.
+
+#### - **[Cập nhật]**
+- Đồng bộ nâng phiên bản của cả hai tiện ích mở rộng lên phiên bản mới `1.2.4`.
+
+---
+
+### [v1.2.3] - 2026-06-07
+
+#### - **[Thêm mới]**
+- Tích hợp tính năng hiển thị danh sách tải xuống thu gọn và nút "See more" chuẩn Microsoft Edge:
+  - Nếu chưa có hoạt động tải xuống nào trong phiên làm việc hiện tại (session), danh sách sẽ hiển thị đầy đủ toàn bộ lịch sử tải xuống (dài xuống).
+  - Khi có tệp đang tải hoặc đã tải trong phiên hiện tại, giao diện tự động chuyển sang chế độ thu gọn: chỉ hiển thị các tệp của phiên hiện hành và bổ sung nút **"See more"** phong cách Fluent UI ở chân trang.
+  - Click vào nút **"See more"** sẽ mở rộng danh sách hiển thị đầy đủ lịch sử và ẩn nút chân trang đi.
+  - Các lượt mở popup tiếp theo trong cùng phiên làm việc sẽ mặc định hiển thị danh sách thu gọn để tối ưu hóa không gian hiển thị.
+  - Sử dụng giao tiếp tin nhắn `chrome.runtime.sendMessage` lấy mã định danh tải xuống phiên (`sessionDownloadIds`) từ Service Worker để quản lý trạng thái hiển thị nhất quán.
+
+#### - **[Sửa lỗi]**
+- Khắc phục hoàn toàn lỗi hiển thị sai phần trăm (%) trên Badge biểu tượng thanh công cụ:
+  - Tiến hành lọc bỏ các tệp tải xuống đang ở trạng thái tạm dừng (`item.paused === true`) ra khỏi công thức tính toán phần trăm tổng thể.
+  - Sửa lỗi kẹt số phần trăm (như hiển thị `1%` khi tệp thực tế đang tải đã đạt `63%` do bị kéo tụt bởi một tệp lớn khác đang bị tạm dừng từ trước trong lịch sử của người dùng).
+- Chuyển đổi giao diện popup sang layout Flexbox động (`display: flex; flex-direction: column`):
+  - Loại bỏ các giới hạn chiều cao tĩnh (`max-height`) để phần danh sách tệp tự động giãn nở tối đa chiếm phần không gian trống và xuất hiện thanh cuộn mượt mà ở giữa Header và Footer chân trang.
+
+#### - **[Cập nhật]**
+- Đồng bộ nâng phiên bản của cả hai tiện ích mở rộng lên phiên bản mới `1.2.3`.
+
+---
+
+### [v1.2.2] - 2026-06-07
+
+#### - **[Thêm mới]**
+- Tự động hiển thị popup danh sách tải xuống khi bắt đầu tải:
+  - Gọi hàm `chrome.action.openPopup()` trong sự kiện `chrome.downloads.onCreated` tại [background.js](file:///d:/CodePython/CustomeExtensionForChrome/EdgeDownloadsPopup/background.js) để kích hoạt hiển thị trình đơn tải xuống của tiện ích mở rộng ngay lập tức khi người dùng bắt đầu tải một tệp tin mới.
+
+#### - **[Sửa lỗi]**
+- Khắc phục lỗi hiển thị sai số phần trăm trên Badge biểu tượng thanh công cụ:
+  - Chuyển đổi phương thức tính toán từ sử dụng bộ nhớ cache tạm thời sang truy vấn trực tiếp nguồn dữ liệu thực tế của trình duyệt thông qua API `chrome.downloads.search({ state: 'in_progress' })`.
+  - Giải quyết triệt để tình trạng Badge hiển thị sai tỷ lệ (như bị kẹt ở `0%` trong khi tiến trình tải thực tế đã đạt phần trăm cao hơn).
+- Tự động khôi phục trạng thái khi Service Worker thức dậy:
+  - Tự động chạy quét các tác vụ tải xuống hiện hành ngay khi khởi động tiện ích để khôi phục đúng hoạt ảnh biểu tượng nhấp nháy phát sáng và Badge tiến độ.
+
+#### - **[Cập nhật]**
+- Đồng bộ nâng phiên bản của cả hai tiện ích mở rộng lên phiên bản vá lỗi mới `1.2.2`.
+
+---
+
 ### [v1.2.1] - 2026-06-07
 
 #### - **[Thêm mới]**

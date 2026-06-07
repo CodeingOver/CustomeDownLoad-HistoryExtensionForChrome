@@ -1,4 +1,5 @@
 let activeDownloads = {};
+let sessionDownloadIds = new Set();
 let animationInterval = null;
 let isGlowState = false;
 
@@ -12,6 +13,7 @@ if (chrome.downloads.setUiOptions) {
 
 // Listen for new downloads
 chrome.downloads.onCreated.addListener((item) => {
+  sessionDownloadIds.add(item.id);
   activeDownloads[item.id] = {
     id: item.id,
     filename: getBasename(item.filename),
@@ -20,12 +22,19 @@ chrome.downloads.onCreated.addListener((item) => {
     state: item.state || 'in_progress',
     error: item.error || null
   };
-  startAnimation();
+  
+  // Tự động hiển thị popup khi bắt đầu tải xuống
+  chrome.action.openPopup().catch((err) => {
+    console.warn("Could not open popup automatically:", err);
+  });
+
+  updateBadgeAndAnimation();
   broadcastProgress();
 });
 
 // Listen for changes in downloads
 chrome.downloads.onChanged.addListener((delta) => {
+  sessionDownloadIds.add(delta.id);
   const id = delta.id;
   if (!activeDownloads[id]) {
     // If we missed onCreated, fetch the complete item
@@ -71,45 +80,51 @@ function handleDelta(id, delta) {
   if (item.state === 'complete' || item.state === 'interrupted') {
     broadcastProgressToActiveTab(item, 'download-complete');
     delete activeDownloads[id];
-    checkStopAnimation();
   } else {
     broadcastProgressToActiveTab(item, 'download-progress');
   }
 
-  updateBadge();
+  updateBadgeAndAnimation();
 }
 
-// Check and update badge progress percentage
-function updateBadge() {
-  const activeIds = Object.keys(activeDownloads);
-  if (activeIds.length === 0) {
-    chrome.action.setBadgeText({ text: '' });
-    return;
-  }
+// Cập nhật badge tiến độ tải xuống và hiệu ứng nhấp nháy từ dữ liệu gốc của trình duyệt
+function updateBadgeAndAnimation() {
+  chrome.downloads.search({ state: 'in_progress' }, (items) => {
+    // Chỉ tính toán tiến trình cho các tệp đang thực sự tải (loại bỏ tệp tạm dừng)
+    const activeItems = (items || []).filter(item => !item.paused);
+    
+    if (activeItems.length === 0) {
+      chrome.action.setBadgeText({ text: '' });
+      stopAnimation();
+      return;
+    }
 
-  let totalBytes = 0;
-  let bytesReceived = 0;
-  let indeterminate = false;
+    // Đang có tệp tải xuống: kích hoạt hoạt ảnh nhấp nháy
+    startAnimation();
 
-  activeIds.forEach(id => {
-    const item = activeDownloads[id];
-    if (item.totalBytes > 0) {
-      totalBytes += item.totalBytes;
-      bytesReceived += item.bytesReceived;
+    let totalBytes = 0;
+    let bytesReceived = 0;
+    let indeterminate = false;
+
+    activeItems.forEach(item => {
+      if (item.totalBytes > 0) {
+        totalBytes += item.totalBytes;
+        bytesReceived += item.bytesReceived;
+      } else {
+        indeterminate = true;
+      }
+    });
+
+    if (indeterminate || totalBytes === 0) {
+      chrome.action.setBadgeText({ text: '...' });
     } else {
-      indeterminate = true;
+      const percent = Math.floor((bytesReceived / totalBytes) * 100);
+      chrome.action.setBadgeText({ text: `${percent}%` });
     }
   });
-
-  if (indeterminate || totalBytes === 0) {
-    chrome.action.setBadgeText({ text: '...' });
-  } else {
-    const percent = Math.floor((bytesReceived / totalBytes) * 100);
-    chrome.action.setBadgeText({ text: `${percent}%` });
-  }
 }
 
-// Flashing Icon Animation Logic
+// Khởi chạy hoạt ảnh biểu tượng nhấp nháy phát sáng (Glow)
 function startAnimation() {
   if (animationInterval) return;
   
@@ -129,24 +144,20 @@ function startAnimation() {
   }, 800);
 }
 
-function checkStopAnimation() {
-  const activeIds = Object.keys(activeDownloads);
-  if (activeIds.length === 0) {
-    if (animationInterval) {
-      clearInterval(animationInterval);
-      animationInterval = null;
-    }
-    isGlowState = false;
-    // Reset icon to standard white
-    chrome.action.setIcon({
-      path: {
-        "16": "icon16.png",
-        "32": "icon32.png",
-        "48": "icon48.png"
-      }
-    }).catch(() => {});
-    chrome.action.setBadgeText({ text: '' });
+// Dừng hoạt ảnh nhấp nháy và khôi phục biểu tượng mặc định
+function stopAnimation() {
+  if (animationInterval) {
+    clearInterval(animationInterval);
+    animationInterval = null;
   }
+  isGlowState = false;
+  chrome.action.setIcon({
+    path: {
+      "16": "icon16.png",
+      "32": "icon32.png",
+      "48": "icon48.png"
+    }
+  }).catch(() => {});
 }
 
 // Broadcast progress of all active downloads
@@ -184,7 +195,10 @@ chrome.tabs.onActivated.addListener((activeInfo) => {
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'open-file') {
     chrome.downloads.open(request.id);
+  } else if (request.action === 'get-session-downloads') {
+    sendResponse({ sessionDownloadIds: Array.from(sessionDownloadIds) });
   }
+  return true;
 });
 
 // Helper to get file basename
@@ -193,3 +207,6 @@ function getBasename(path) {
   const parts = path.split(/[/\\]/);
   return parts[parts.length - 1];
 }
+
+// Đồng bộ trạng thái Badge và hoạt ảnh ngay khi Service Worker khởi động
+updateBadgeAndAnimation();

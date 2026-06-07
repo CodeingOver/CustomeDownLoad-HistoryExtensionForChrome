@@ -12,11 +12,18 @@ document.addEventListener('DOMContentLoaded', function () {
   const moreDropdown = document.getElementById('more-dropdown');
   const menuOpenPage = document.getElementById('menu-open-page');
   const menuClearAll = document.getElementById('menu-clear-all');
+  const btnSeeMore = document.getElementById('btn-see-more');
 
   let searchTimeout = null;
+  let forceShowAll = false;
 
   // Initial load
   loadDownloads();
+
+  btnSeeMore.addEventListener('click', () => {
+    forceShowAll = true;
+    loadDownloads();
+  });
 
   // Real-time downloads monitoring
   chrome.downloads.onCreated.addListener(() => {
@@ -89,30 +96,49 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // Main Loader
   function loadDownloads(query = '') {
-    const searchOptions = { 
-      limit: 50,
-      orderBy: ['-startTime']
-    };
-    if (query.trim() !== '') {
-      searchOptions.query = [query];
-    }
+    chrome.runtime.sendMessage({ action: 'get-session-downloads' }, (response) => {
+      const sessionIds = (response && response.sessionDownloadIds) || [];
 
-    chrome.downloads.search(searchOptions, function (items) {
-      list.innerHTML = '';
-      
-      // Filter out files that don't have filename yet (e.g. crdownload files starting up)
-      const validItems = items.filter(item => item.filename);
-
-      if (!validItems || validItems.length === 0) {
-        emptyState.classList.remove('hidden');
-        return;
+      const searchOptions = { 
+        limit: 50,
+        orderBy: ['-startTime']
+      };
+      if (query.trim() !== '') {
+        searchOptions.query = [query];
       }
 
-      emptyState.classList.add('hidden');
+      chrome.downloads.search(searchOptions, function (items) {
+        list.innerHTML = '';
+        
+        // Lọc bỏ các tệp tin chưa có tên (ví dụ tệp crdownload khi bắt đầu tải)
+        let validItems = items.filter(item => item.filename);
 
-      validItems.forEach(item => {
-        const row = createDownloadRow(item);
-        list.appendChild(row);
+        // Chế độ hiển thị thu gọn hoạt động khi:
+        // - Có ít nhất một tệp tải xuống trong phiên làm việc này
+        // - Người dùng chưa bấm nút "See more" để xem toàn bộ lịch sử (forceShowAll là false)
+        const isCollapsedView = sessionIds.length > 0 && !forceShowAll;
+
+        if (isCollapsedView) {
+          // Chỉ giữ lại các tệp đang tải hoặc được tải trong phiên này
+          validItems = validItems.filter(item => 
+            item.state === 'in_progress' || sessionIds.includes(item.id)
+          );
+          document.getElementById('footer-container').classList.remove('hidden');
+        } else {
+          document.getElementById('footer-container').classList.add('hidden');
+        }
+
+        if (!validItems || validItems.length === 0) {
+          emptyState.classList.remove('hidden');
+          return;
+        }
+
+        emptyState.classList.add('hidden');
+
+        validItems.forEach(item => {
+          const row = createDownloadRow(item);
+          list.appendChild(row);
+        });
       });
     });
   }

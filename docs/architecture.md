@@ -63,8 +63,8 @@ Hệ thống chia làm hai thành phần lớn tương ứng với hai tiện í
    - Giao diện người dùng (`popup.html` & `popup.css`): Hiển thị cấu trúc tab và danh sách kết quả.
    - Trình điều khiển logic (`popup.js`): Giao tiếp với API trình duyệt (`chrome.history` và `chrome.sessions`) để lấy lịch sử, khôi phục tab đã đóng, và tương tác với các thiết bị được đồng bộ.
 2. **Thành phần Tải xuống (Downloads Component)**:
-   - Giao diện người dùng (`popup.html`, `popup.css`, `popup.js`): Hiển thị danh sách tải xuống, mở tệp, hiển thị vị trí và xóa lịch sử tải xuống.
-   - Service Worker (`background.js`): Chạy ngầm toàn cục để theo dõi các thay đổi tải xuống, tính toán tổng phần trăm, điều khiển Badge nhấp nháy Fluent và bắn thông báo tới tab đang mở.
+   - Giao diện người dùng (`popup.html`, `popup.css`, `popup.js`): Hiển thị danh sách tải xuống, hỗ trợ chế độ thu gọn phiên hiện tại kết hợp nút "See more" để mở rộng, mở tệp, hiển thị vị trí và xóa lịch sử tải xuống.
+   - Service Worker (`background.js`): Chạy ngầm toàn cục để theo dõi các thay đổi tải xuống, tính toán tổng phần trăm (bỏ qua tệp tạm dừng), điều khiển Badge nhấp nháy Fluent, lưu vết danh sách ID tải xuống trong phiên hiện hành và bắn thông báo tới tab đang mở.
    - Content Script (`content.js`): Chèn Card Fluent Toast bọc Shadow DOM độc lập để hiển thị tiến trình hình tròn và hiệu ứng nổ hạt hoàn tất trên trang web đang active.
 
 ---
@@ -81,10 +81,16 @@ Hệ thống chia làm hai thành phần lớn tương ứng với hai tiện í
 ### Luồng 2: Theo dõi và cập nhật tiến trình tải xuống
 1. Người dùng bắt đầu tải xuống một tệp tin.
 2. Trình duyệt kích hoạt sự kiện `chrome.downloads.onCreated`.
-3. Background Service Worker nhận sự kiện, lưu tệp vào hàng đợi tải xuống, khởi động hoạt ảnh nhấp nháy phát sáng (glow icon) và hiển thị % tải xuống trực tiếp trên thanh công cụ (Badge).
-4. Sự kiện `chrome.downloads.onChanged` liên tục kích hoạt. Service Worker tính toán phần trăm hoàn thành, cập nhật Badge và gửi tin nhắn tới Content Script trên tab active.
+3. Background Service Worker nhận sự kiện, tự động lưu ID tệp tải vào danh sách phiên làm việc hiện tại (`sessionDownloadIds`), gọi `chrome.action.openPopup()` để tự động hiển thị menu danh sách tải xuống, khởi động hoạt ảnh nhấp nháy phát sáng (glow icon) và hiển thị % tải xuống trực tiếp trên thanh công cụ (Badge).
+4. Sự kiện `chrome.downloads.onChanged` liên tục kích hoạt. Service Worker truy vấn dữ liệu gốc của trình duyệt thông qua `chrome.downloads.search` và lọc bỏ các tệp đang tạm dừng (`paused`) để tính toán chính xác phần trăm tiến độ thực tế, cập nhật Badge và gửi tin nhắn tới Content Script trên tab active.
 5. Content Script vẽ card Fluent Toast bọc Shadow DOM ở góc trên bên phải, hiển thị tiến trình xoay tròn Circular Progress.
 6. Khi hoàn tất, Service Worker gửi tin nhắn hoàn thành, kích hoạt hoạt ảnh hạt màu nổ (particle explode) trên card Toast của Content Script, tự động biến mất sau 5 giây.
+
+### Luồng 3: Thu gọn và mở rộng danh sách tải xuống (See more)
+1. Khi người dùng click biểu tượng Downloads, Popup gửi tin nhắn lấy danh sách ID của phiên (`get-session-downloads`) từ Service Worker.
+2. Nếu danh sách ID phiên trống (vừa mở trình duyệt, chưa tải gì), Popup hiển thị toàn bộ lịch sử tải xuống dạng danh sách dài (State A).
+3. Nếu danh sách ID phiên có dữ liệu (đã hoặc đang tải tệp trong phiên này), Popup tự động thu gọn chỉ hiển thị các tệp đang tải và các tệp trong phiên đó, đồng thời hiển thị nút "See more" ở chân trang (State B).
+4. Người dùng click nút "See more": Popup đổi trạng thái (`forceShowAll = true`), hiển thị toàn bộ danh sách lịch sử tải xuống và ẩn nút "See more" đi.
 
 ---
 
@@ -102,7 +108,7 @@ Hệ thống sử dụng các API gốc của trình duyệt Chrome:
 - `chrome.sessions.getRecentlyClosed`: Lấy danh sách các tab/cửa sổ đã đóng gần đây.
 - `chrome.sessions.restore`: Khôi phục một phiên làm việc đã đóng.
 - `chrome.sessions.getDevices`: Lấy danh sách tab đang mở trên các thiết bị khác đang đồng bộ tài khoản Chrome.
-- `chrome.downloads.search`: Lấy danh sách lịch sử tải xuống.
+- `chrome.downloads.search`: Lấy danh sách lịch sử tải xuống, được gọi trong cả popup và service worker để tính toán phần trăm Badge chính xác 100%.
 - `chrome.downloads.getFileIcon`: Lấy biểu tượng thực tế của tệp tin từ hệ thống dựa trên phần mở rộng hoặc đường dẫn tệp.
 - `chrome.downloads.open`: Mở tệp tin đã tải xuống hoàn thành.
 - `chrome.downloads.show`: Hiển thị vị trí tệp tin trong thư mục lưu trữ (File Explorer).
@@ -111,7 +117,8 @@ Hệ thống sử dụng các API gốc của trình duyệt Chrome:
 - `chrome.downloads.setUiOptions`: Cấu hình tắt/bật bong bóng tải xuống mặc định của trình duyệt.
 - `chrome.action.setIcon`: Thay đổi biểu tượng (icon) trên thanh công cụ động.
 - `chrome.action.setBadgeText`: Cập nhật văn bản chỉ số badge (phần trăm).
-- `chrome.runtime.onMessage.addListener`: Lắng nghe tin nhắn trao đổi dữ liệu giữa các thành phần.
+- `chrome.action.openPopup`: Tự động mở cửa sổ trình đơn của tiện ích mở rộng khi bắt đầu tải xuống.
+- `chrome.runtime.onMessage.addListener`: Lắng nghe tin nhắn trao đổi dữ liệu giữa các thành phần, bao gồm phản hồi thông tin tệp tải trong phiên hiện tại (`sessionDownloadIds`) để kiểm soát chế độ hiển thị thu gọn của popup.
 - `chrome.tabs.onActivated`: Lắng nghe sự kiện người dùng chuyển đổi tab để đồng bộ hoạt ảnh tải xuống.
 
 ---
@@ -143,20 +150,24 @@ graph TD
 sequenceDiagram
     autonumber
     actor User as Người dùng
-    participant Pop as Pop-up Download
     participant Chrome as Trình duyệt Chrome
+    participant SW as Service Worker (Bg)
+    participant Pop as Pop-up Download
     participant Disk as Ổ đĩa máy tính
 
     User->>Chrome: Bắt đầu tải file
-    Chrome->>Pop: Kích hoạt sự kiện onCreated
-    Pop->>Pop: Tạo dòng hiển thị file ở trạng thái Đang tải
-    loop Định kỳ mỗi giây
-        Chrome->>Pop: Kích hoạt onChanged (bytesReceived)
-        Pop->>Pop: Tính toán phần trăm & Cập nhật thanh tiến trình
+    Chrome->>SW: Kích hoạt sự kiện onCreated
+    SW->>Chrome: Gọi chrome.action.openPopup()
+    Chrome->>Pop: Hiển thị giao diện Popup tự động
+    loop Định kỳ
+        Chrome->>SW: Kích hoạt onChanged
+        SW->>Chrome: Gọi chrome.downloads.search() để lấy tiến độ
+        SW->>Chrome: Cập nhật chỉ số Badge % thực tế
+        Chrome->>Pop: Cập nhật hiển thị dòng tiến trình
     end
     Chrome->>Disk: Hoàn tất ghi file lên ổ đĩa
-    Chrome->>Pop: Kích hoạt onChanged (state = complete)
-    Pop->>Pop: Ẩn thanh tiến trình, hiển thị nút Open file
+    Chrome->>SW: Kích hoạt onChanged (complete)
+    SW->>Pop: Ẩn thanh tiến trình, hiển thị nút Open
     User->>Pop: Nhấp vào Open file
     Pop->>Chrome: Gọi chrome.downloads.open(id)
     Chrome->>User: Mở ứng dụng tương ứng chạy tệp
