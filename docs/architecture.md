@@ -42,8 +42,7 @@ d:/CodePython/CustomeExtensionForChrome/
     ├── popup.js                        # Logic theo dõi & thao tác tải xuống
     ├── background.js                   # Service Worker quản lý vòng đời tải xuống và vẽ Canvas
     ├── offscreen.html                  # HTML chứa script offscreen để polling tiến độ ngầm
-    ├── offscreen.js                    # Logic offscreen chạy polling liên tục không bị ngủ đông
-    ├── content.js                      # Content Script hiển thị hoạt ảnh Toast Fluent
+    ├── offscreen.js                    # Logic offscreen phát heartbeat keep-alive không bị ngủ đông
     ├── icon.svg                        # Icon gốc dạng SVG (trắng)
     ├── icon16.png                      # Icon trắng kích thước 16x16
     ├── icon32.png                      # Icon trắng kích thước 32x32
@@ -65,10 +64,9 @@ Hệ thống chia làm hai thành phần lớn tương ứng với hai tiện í
    - Giao diện người dùng (`popup.html` & `popup.css`): Hiển thị cấu trúc tab và danh sách kết quả.
    - Trình điều khiển logic (`popup.js`): Giao tiếp với API trình duyệt (`chrome.history` và `chrome.sessions`) để lấy lịch sử, khôi phục tab đã đóng, và tương tác với các thiết bị được đồng bộ.
 2. **Thành phần Tải xuống (Downloads Component)**:
-   - Giao diện người dùng (`popup.html`, `popup.css`, `popup.js`): Hiển thị danh sách tải xuống, hỗ trợ chế độ thu gọn phiên hiện tại kết hợp nút "See more" để mở rộng, mở tệp, hiển thị vị trí và xóa lịch sử tải xuống. Popup nhận tin nhắn tiến trình từ Service Worker qua `chrome.runtime.onMessage` để cập nhật DOM tại chỗ theo mô hình event-driven, đồng thời chỉ vẽ lại danh sách khi có thay đổi trạng thái quan trọng.
-   - Service Worker (`background.js`): Chạy ngầm để quản lý vòng đời tải xuống, tắt UI mặc định của Chrome tại các điểm khởi động bằng `chrome.downloads.setUiOptions` kèm fallback `chrome.downloads.setShelfEnabled` cho Chromium cũ, xử lý trạng thái hoàn tất bằng vẽ Canvas checkmark Fluent, và điều phối đóng/mở tài liệu offscreen. Đồng thời giới hạn tần suất gửi tin nhắn cập nhật tiến trình (Throttling) tối đa 1 giây/lần rồi phát dữ liệu đến cả Content Script và Popup. Các lượt tải cũ được Chrome khôi phục sau khi khởi động lại hoặc lỗi hủy chủ động `USER_CANCELED` sẽ không được phát toast lên trang web.
-   - Tài liệu ẩn (`offscreen.html`, `offscreen.js`): Môi trường DOM ẩn phát nhịp tim (heartbeat) định kỳ 5 giây bằng tin nhắn `'polling-tick'` để duy trì hoạt động cho Service Worker mà không bị Chrome dừng Service Worker.
-   - Content Script (`content.js`): Chèn Card Fluent Toast bọc Shadow DOM độc lập để hiển thị tiến trình hình tròn và hiệu ứng nổ hạt hoàn tất trên trang web đang active. Sử dụng `requestAnimationFrame` và cập nhật DOM tại chỗ để hoạt ảnh tiến trình cực kỳ mượt mà.
+   - Giao diện người dùng (`popup.html`, `popup.css`, `popup.js`): Hiển thị danh sách tải xuống, hỗ trợ chế độ thu gọn phiên hiện tại kết hợp nút "See more" để mở rộng, mở tệp, hiển thị vị trí và xóa lịch sử tải xuống. Popup nhận message batch `sync-all-progress` từ Service Worker qua `chrome.runtime.onMessage` để cập nhật DOM tại chỗ theo mô hình event-driven, đồng thời chỉ vẽ lại danh sách khi có thay đổi trạng thái quan trọng.
+   - Service Worker (`background.js`): Chạy ngầm để quản lý vòng đời tải xuống, tắt UI mặc định của Chrome tại các điểm khởi động bằng `chrome.downloads.setUiOptions` kèm fallback `chrome.downloads.setShelfEnabled` cho Chromium cũ, xử lý trạng thái hoàn tất bằng vẽ Canvas checkmark Fluent, và điều phối đóng/mở tài liệu offscreen. Đồng thời gom dữ liệu tiến trình trong `activeDownloads` thành message batch gửi về Popup tối đa mỗi 3 giây.
+   - Tài liệu ẩn (`offscreen.html`, `offscreen.js`): Môi trường DOM ẩn phát nhịp tim (heartbeat) định kỳ 25 giây bằng tin nhắn `'polling-tick'` để duy trì hoạt động cho Service Worker mà không truy vấn tiến trình tải xuống.
 
 ---
 
@@ -85,11 +83,10 @@ Hệ thống chia làm hai thành phần lớn tương ứng với hai tiện í
 1. Người dùng bắt đầu tải xuống một tệp tin.
 2. Trình duyệt kích hoạt sự kiện `chrome.downloads.onCreated`.
 3. Background Service Worker đã thiết lập vô hiệu hóa bong bóng tải gốc ở giai đoạn khởi động bằng `setUiOptions` hoặc `setShelfEnabled` nếu trình duyệt cũ chỉ còn API Download Shelf. Khi nhận sự kiện tải mới, Service Worker lưu ID tệp tải vào danh sách phiên làm việc hiện tại (`sessionDownloadIds`) và chỉ gọi `chrome.action.openPopup()` nếu đây là lượt tải mới sau giai đoạn khởi động. Các lượt tải cũ do Chrome khôi phục khi vừa mở trình duyệt sẽ không tự bật popup. Sau đó Service Worker khởi động hoạt ảnh nhấp nháy phát sáng (glow icon) và gọi `ensureOffscreenDocument()` để kích hoạt tài liệu ẩn Offscreen.
-4. Tài liệu Offscreen hoạt động và gửi tin nhắn `'polling-tick'` định kỳ mỗi 5 giây để đánh thức và giữ cho Service Worker luôn hoạt động.
-5. Service Worker nhận sự kiện thay đổi qua `chrome.downloads.onChanged` và tiến hành cập nhật bộ nhớ đệm `activeDownloads`. Khi tiến trình thay đổi liên tục, background giới hạn tần suất gửi tin nhắn (throttling) tối đa 1 giây/lần cho mỗi tệp tải để giảm tải CPU.
-6. Khi popup đang mở, `popup.js` lắng nghe tin nhắn `download-progress` từ Service Worker và cập nhật trực tiếp nhãn phần trăm, dung lượng, thanh tiến trình và trạng thái Pause/Resume của dòng tương ứng. Trình lắng nghe `onChanged` trong popup được lọc để chỉ gọi `loadDownloads()` (vẽ lại DOM) khi có thay đổi trạng thái quan trọng.
-7. Content Script chỉ nhận tin nhắn tiến độ từ các lượt tải mới hợp lệ trong phiên hiện tại, cập nhật DOM tại chỗ của card Fluent Toast thông qua `requestAnimationFrame` hiển thị tiến trình xoay tròn Circular Progress mượt mà. Các lượt tải cũ được khôi phục khi mở lại Chrome và các lỗi `USER_CANCELED` không tạo card toast.
-8. Khi hoàn tất, Service Worker gửi tin nhắn hoàn thành, kích hoạt hoạt ảnh hạt màu nổ (particle explode) trên card Toast của Content Script, tự động biến mất sau 5 giây. Đồng thời, nếu cửa sổ popup không mở, Service Worker sẽ vẽ động biểu tượng hoàn thành bằng cách sử dụng `OffscreenCanvas` để tạo một vòng tròn màu xanh lá cây sắc nét kèm dấu tích trắng nhỏ ở góc dưới bên phải biểu tượng, rồi đặt biểu tượng thông qua `chrome.action.setIcon`. Khi không còn tệp nào đang tải ngầm, Offscreen Document tự động đóng lại thông qua `closeOffscreenDocument()`. Biểu tượng hoàn tất này sẽ được khôi phục về mặc định ngay khi người dùng mở popup hoặc bắt đầu lượt tải mới.
+4. Tài liệu Offscreen hoạt động và gửi tin nhắn `'polling-tick'` định kỳ mỗi 25 giây để đánh thức và giữ cho Service Worker luôn hoạt động; tick này không gọi `chrome.downloads.search()`.
+5. Service Worker nhận sự kiện thay đổi qua `chrome.downloads.onChanged` và tiến hành cập nhật bộ nhớ đệm `activeDownloads`. Khi tiến trình thay đổi liên tục, background gom dữ liệu thành một mảng rồi gửi message batch `sync-all-progress` về Popup tối đa mỗi 3 giây.
+6. Khi popup đang mở, `popup.js` lắng nghe `sync-all-progress` và cập nhật trực tiếp nhãn phần trăm, dung lượng, thanh tiến trình và trạng thái Pause/Resume của từng dòng tương ứng. Trình lắng nghe `onChanged` trong popup được lọc để chỉ gọi `loadDownloads()` (vẽ lại DOM) khi có thay đổi trạng thái quan trọng.
+7. Khi hoàn tất, Service Worker gửi tin nhắn hoàn thành đến Popup để tải lại danh sách. Đồng thời, nếu cửa sổ popup không mở, Service Worker sẽ vẽ động biểu tượng hoàn thành bằng cách sử dụng `OffscreenCanvas` để tạo một vòng tròn màu xanh lá cây sắc nét kèm dấu tích trắng nhỏ ở góc dưới bên phải biểu tượng, rồi đặt biểu tượng thông qua `chrome.action.setIcon`. Khi không còn tệp nào đang tải ngầm, Offscreen Document tự động đóng lại thông qua `closeOffscreenDocument()`. Biểu tượng hoàn tất này sẽ được khôi phục về mặc định ngay khi người dùng mở popup hoặc bắt đầu lượt tải mới.
 
 ### Luồng 3: Thu gọn và mở rộng danh sách tải xuống (See more)
 1. Khi người dùng click biểu tượng Downloads, Popup gửi tin nhắn lấy danh sách ID của phiên (`get-session-downloads`) từ Service Worker.
@@ -113,7 +110,7 @@ Hệ thống sử dụng các API gốc của trình duyệt Chrome:
 - `chrome.sessions.getRecentlyClosed`: Lấy danh sách các tab/cửa sổ đã đóng gần đây.
 - `chrome.sessions.restore`: Khôi phục một phiên làm việc đã đóng.
 - `chrome.sessions.getDevices`: Lấy danh sách tab đang mở trên các thiết bị khác đang đồng bộ tài khoản Chrome.
-- `chrome.downloads.search`: Lấy danh sách lịch sử tải xuống, được gọi trong cả popup và service worker để tính toán phần trăm Badge chính xác 100%.
+- `chrome.downloads.search`: Lấy danh sách lịch sử tải xuống cho popup và chỉ được Service Worker dùng khi khởi động hoặc cần backfill một download bị lỡ sự kiện; tiến trình Badge chính dựa trên bộ nhớ đệm `activeDownloads` kết hợp `chrome.downloads.onChanged`.
 - `chrome.downloads.getFileIcon`: Lấy biểu tượng thực tế của tệp tin từ hệ thống dựa trên phần mở rộng hoặc đường dẫn tệp.
 - `chrome.downloads.open`: Mở tệp tin đã tải xuống hoàn thành.
 - `chrome.downloads.show`: Hiển thị vị trí tệp tin trong thư mục lưu trữ (File Explorer).
@@ -125,7 +122,6 @@ Hệ thống sử dụng các API gốc của trình duyệt Chrome:
 - `chrome.action.setBadgeText`: Cập nhật văn bản chỉ số badge (phần trăm).
 - `chrome.action.openPopup`: Tự động mở cửa sổ trình đơn của tiện ích mở rộng khi người dùng bắt đầu lượt tải mới, có bộ lọc tránh bật popup cho download cũ được Chrome khôi phục lúc khởi động.
 - `chrome.runtime.onMessage.addListener`: Lắng nghe tin nhắn trao đổi dữ liệu giữa các thành phần, bao gồm phản hồi thông tin tệp tải trong phiên hiện tại (`sessionDownloadIds`) để kiểm soát chế độ hiển thị thu gọn của popup và nhận dữ liệu tiến trình tải xuống event-driven.
-- `chrome.tabs.onActivated`: Lắng nghe sự kiện người dùng chuyển đổi tab để đồng bộ hoạt ảnh tải xuống.
 
 ---
 
@@ -171,15 +167,15 @@ sequenceDiagram
         SW->>Chrome: Bỏ qua openPopup()
     end
     SW->>Chrome: Khởi tạo Offscreen Document
-    loop Định kỳ nhịp tim mỗi 5 giây
+    loop Định kỳ nhịp tim mỗi 25 giây
         Offscreen->>SW: Gửi tin nhắn polling-tick
-        SW->>Chrome: Gọi chrome.downloads.search(state: in_progress)
+        SW->>SW: Cập nhật badge từ activeDownloads
     end
-    loop Khi tiến trình tệp thay đổi (Throttled 1s)
+    loop Khi tiến trình tệp thay đổi
         Chrome->>SW: Kích hoạt onChanged (bytesReceived)
         SW->>Chrome: Cập nhật Badge % thực tế
-        SW->>Chrome: Gửi tin nhắn tiến độ đến Content Script
-        SW->>Pop: Gửi download-progress để cập nhật DOM tại chỗ
+        SW->>SW: Gom dữ liệu vào batch 3 giây
+        SW->>Pop: Gửi sync-all-progress để cập nhật DOM tại chỗ
     end
     Chrome->>Disk: Hoàn tất ghi file lên ổ đĩa
     Chrome->>SW: Kích hoạt onChanged (complete)

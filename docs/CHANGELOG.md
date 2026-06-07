@@ -4,6 +4,22 @@ Tài liệu này ghi lại toàn bộ lịch sử các phiên bản phát hành 
 
 ---
 
+### [v1.2.20] - 2026-06-07
+
+#### - **[Xóa bỏ]**
+- Loại bỏ hoàn toàn Toast UI tải xuống trên trang web:
+  - Xóa `EdgeDownloadsPopup/content.js` vì không còn hiển thị card Fluent Toast trong tab active.
+  - Gỡ khai báo `content_scripts` và quyền `"activeTab"` khỏi `EdgeDownloadsPopup/manifest.json`.
+  - Xóa luồng gửi message tiến trình từ Service Worker xuống tab web, bao gồm cơ chế đồng bộ khi chuyển tab.
+
+#### - **[Cập nhật]**
+- Tối ưu hóa đường cập nhật tiến trình tải xuống:
+  - Chuyển Offscreen Document thành heartbeat keep-alive đơn thuần với chu kỳ 25 giây, không còn kích hoạt `chrome.downloads.search()` trong mỗi `polling-tick`.
+  - Tin tưởng `chrome.downloads.onChanged` làm nguồn dữ liệu tiến trình chính cho `activeDownloads`.
+  - Gom các cập nhật tiến trình thành message batch `sync-all-progress` gửi về Popup tối đa mỗi 3 giây thay vì gửi từng message riêng cho từng tệp.
+  - Thêm transition CSS cho thanh tiến trình Popup để trình duyệt tự nội suy chuyển động mượt hơn.
+- Đồng bộ nâng phiên bản của cả hai tiện ích mở rộng lên `1.2.20` tại các tệp `manifest.json`.
+
 ### [v1.2.19] - 2026-06-07
 
 #### - **[Sửa lỗi]**

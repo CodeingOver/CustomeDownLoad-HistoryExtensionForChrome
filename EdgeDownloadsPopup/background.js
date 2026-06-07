@@ -10,7 +10,9 @@ let completeIconImageDataCache = null; // Bộ đệm lưu trữ dữ liệu ả
 const serviceWorkerStartedAt = Date.now();
 const STARTUP_AUTO_OPEN_GRACE_MS = 5000;
 const RESTORED_DOWNLOAD_SKEW_MS = 2000;
+const PROGRESS_BATCH_INTERVAL_MS = 3000;
 let hasCompletedStartupDownloadScan = false;
+let progressBatchTimer = null;
 
 // Theo dõi trạng thái đóng/mở của cửa sổ popup bằng cơ chế Port Connection
 chrome.runtime.onConnect.addListener((port) => {
@@ -29,8 +31,6 @@ disableNativeDownloadUi('service-worker-load');
 
 // Listen for new downloads
 chrome.downloads.onCreated.addListener((item) => {
-  const shouldNotifyToast = shouldNotifyDownloadToast(item);
-
   sessionDownloadIds.add(item.id);
   activeDownloads[item.id] = {
     id: item.id,
@@ -39,8 +39,7 @@ chrome.downloads.onCreated.addListener((item) => {
     bytesReceived: item.bytesReceived || 0,
     state: item.state || 'in_progress',
     paused: item.paused || false,
-    error: item.error || null,
-    notifyToast: shouldNotifyToast
+    error: item.error || null
   };
   
   // Chỉ tự động hiển thị popup cho lượt tải mới, không mở khi Chrome khôi phục download cũ lúc startup.
@@ -51,7 +50,7 @@ chrome.downloads.onCreated.addListener((item) => {
   }
 
   updateBadgeAndAnimation();
-  broadcastProgress();
+  scheduleProgressBatch();
 });
 
 function shouldAutoOpenPopupForCreatedDownload(item) {
@@ -65,23 +64,6 @@ function shouldAutoOpenPopupForCreatedDownload(item) {
   }
 
   return true;
-}
-
-function shouldNotifyDownloadToast(item) {
-  if (item.error === 'USER_CANCELED') {
-    return false;
-  }
-
-  const startedAt = item.startTime ? Date.parse(item.startTime) : NaN;
-  if (!Number.isNaN(startedAt) && startedAt < serviceWorkerStartedAt - RESTORED_DOWNLOAD_SKEW_MS) {
-    return false;
-  }
-
-  return true;
-}
-
-function canBroadcastDownloadToast(item) {
-  return item && item.notifyToast !== false && item.error !== 'USER_CANCELED';
 }
 
 function disableNativeDownloadUi(source) {
@@ -133,8 +115,7 @@ chrome.downloads.onChanged.addListener((delta) => {
           bytesReceived: item.bytesReceived,
           state: item.state,
           paused: item.paused || false,
-          error: item.error,
-          notifyToast: shouldNotifyDownloadToast(item)
+          error: item.error
         };
         handleDelta(id, delta);
       }
@@ -180,9 +161,7 @@ function handleDelta(id, delta) {
 
   // Handle completion or failure
   if (item.state === 'complete' || item.state === 'interrupted') {
-    if (canBroadcastDownloadToast(item)) {
-      broadcastProgressToActiveTab(item, 'download-complete');
-    }
+    sendProgressToPopup(item, 'download-complete');
     delete activeDownloads[id];
     updateBadgeAndAnimation();
   } else {
@@ -190,9 +169,7 @@ function handleDelta(id, delta) {
     const now = Date.now();
     if (isCritical || !item.lastUpdateTime || (now - item.lastUpdateTime >= 1000)) {
       item.lastUpdateTime = now;
-      if (canBroadcastDownloadToast(item)) {
-        broadcastProgressToActiveTab(item, 'download-progress');
-      }
+      scheduleProgressBatch();
       updateBadgeAndAnimation();
     }
   }
@@ -439,14 +416,30 @@ function stopAnimation() {
   }).catch(() => {});
 }
 
-// Broadcast progress of all active downloads
-function broadcastProgress() {
-  Object.keys(activeDownloads).forEach(id => {
-    const item = activeDownloads[id];
-    if (canBroadcastDownloadToast(item)) {
-      broadcastProgressToActiveTab(item, 'download-progress');
-    }
-  });
+function getProgressSyncItems() {
+  return Object.values(activeDownloads).filter(item => (
+    item &&
+    item.state === 'in_progress'
+  ));
+}
+
+function scheduleProgressBatch(delay = PROGRESS_BATCH_INTERVAL_MS) {
+  if (progressBatchTimer) {
+    return;
+  }
+
+  progressBatchTimer = setTimeout(() => {
+    progressBatchTimer = null;
+    broadcastProgressBatch();
+  }, delay);
+}
+
+function broadcastProgressBatch(items = getProgressSyncItems()) {
+  if (!items || items.length === 0) {
+    return;
+  }
+
+  sendProgressBatchToPopup(items);
 }
 
 // Send progress detail to extension views such as the popup
@@ -457,117 +450,23 @@ function sendProgressToPopup(item, type = 'download-progress') {
   }).catch(() => {});
 }
 
-// Send progress detail to a specific tab
-function sendProgressToTab(tabId, item, type = 'download-progress') {
-  chrome.tabs.sendMessage(tabId, {
-    type: type,
-    detail: item
-  }).catch(() => {}); // Ignore errors if tab doesn't have content script loaded
+function sendProgressBatchToPopup(items) {
+  chrome.runtime.sendMessage({
+    type: 'sync-all-progress',
+    details: items
+  }).catch(() => {});
 }
 
-// Broadcast progress to the currently active tab (handling last focused window to avoid popup window conflict)
-function broadcastProgressToActiveTab(item, type = 'download-progress') {
-  sendProgressToPopup(item, type);
-
-  chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
-    if (tabs && tabs.length > 0 && tabs[0].id) {
-      sendProgressToTab(tabs[0].id, item, type);
-    } else {
-      chrome.tabs.query({ active: true }, (tabs) => {
-        if (tabs && tabs.length > 0 && tabs[0].id) {
-          sendProgressToTab(tabs[0].id, item, type);
-        }
-      });
-    }
-  });
-}
-
-// Listen for tab switching to resume rendering on the newly active tab
-chrome.tabs.onActivated.addListener((activeInfo) => {
-  Object.keys(activeDownloads).forEach(id => {
-    const item = activeDownloads[id];
-    if (canBroadcastDownloadToast(item)) {
-      sendProgressToTab(activeInfo.tabId, item, 'download-progress');
-    }
-  });
-});
-
-// Listen for message from content script to open file
+// Listen for messages from extension views
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === 'open-file') {
-    chrome.downloads.open(request.id).catch((err) => {
-      console.warn("[background.js] Không thể mở tệp:", err.message);
-    });
-  } else if (request.action === 'get-session-downloads') {
+  if (request.action === 'get-session-downloads') {
     sendResponse({ sessionDownloadIds: Array.from(sessionDownloadIds) });
   } else if (request.action === 'clear-complete-badge') {
     isCompleteState = false;
     chrome.action.setBadgeText({ text: '' });
     stopAnimation(); // Khôi phục biểu tượng mặc định
   } else if (request.action === 'polling-tick') {
-    chrome.downloads.search({ state: 'in_progress' }, (items) => {
-      if (!items || items.length === 0) {
-        closeOffscreenDocument();
-        
-        // Cập nhật lại activeDownloads của các tệp đã tải xong hoặc lỗi
-        Object.keys(activeDownloads).forEach(id => {
-          chrome.downloads.search({ id: parseInt(id) }, (details) => {
-            if (details && details[0]) {
-              const detail = details[0];
-              if (detail.state === 'complete' || detail.state === 'interrupted') {
-                delete activeDownloads[id];
-              }
-            } else {
-              delete activeDownloads[id];
-            }
-            updateBadgeAndAnimation();
-          });
-        });
-        return;
-      }
-
-      const updatedIds = new Set(items.map(item => item.id));
-
-      // Thêm hoặc cập nhật các tệp đang tải vào activeDownloads
-      items.forEach(item => {
-        const currentItem = activeDownloads[item.id];
-        const lastTime = currentItem ? currentItem.lastUpdateTime : null;
-        const notifyToast = currentItem ? currentItem.notifyToast : shouldNotifyDownloadToast(item);
-        activeDownloads[item.id] = {
-          id: item.id,
-          filename: getBasename(item.filename),
-          totalBytes: item.totalBytes || 0,
-          bytesReceived: item.bytesReceived || 0,
-          state: item.state || 'in_progress',
-          paused: item.paused || false,
-          error: item.error || null,
-          lastUpdateTime: lastTime,
-          notifyToast: notifyToast
-        };
-        sessionDownloadIds.add(item.id);
-      });
-
-      // Dọn dẹp các tệp đã hoàn thành không còn trong danh sách gửi về
-      Object.keys(activeDownloads).forEach(id => {
-        const numericId = parseInt(id);
-        if (!updatedIds.has(numericId)) {
-          chrome.downloads.search({ id: numericId }, (details) => {
-            if (details && details[0]) {
-              const detail = details[0];
-              if (detail.state === 'complete' || detail.state === 'interrupted') {
-                delete activeDownloads[id];
-              }
-            } else {
-              delete activeDownloads[id];
-            }
-            updateBadgeAndAnimation();
-          });
-        }
-      });
-
-      updateBadgeAndAnimation();
-      broadcastProgress();
-    });
+    updateBadgeAndAnimation();
   }
 });
 
@@ -598,8 +497,7 @@ chrome.downloads.search({ state: 'in_progress' }, (items) => {
         bytesReceived: item.bytesReceived || 0,
         state: item.state || 'in_progress',
         paused: item.paused || false,
-        error: item.error || null,
-        notifyToast: shouldNotifyDownloadToast(item)
+        error: item.error || null
       };
       sessionDownloadIds.add(item.id);
     });

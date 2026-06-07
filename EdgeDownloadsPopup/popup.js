@@ -50,7 +50,14 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
   chrome.runtime.onMessage.addListener((message) => {
-    if (!message || !message.detail) return;
+    if (!message) return;
+
+    if (message.type === 'sync-all-progress') {
+      (message.details || []).forEach(updateDownloadProgress);
+      return;
+    }
+
+    if (!message.detail) return;
 
     if (message.type === 'download-complete') {
       loadDownloads(searchInput.value);
