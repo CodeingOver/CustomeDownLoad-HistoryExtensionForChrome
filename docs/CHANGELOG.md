@@ -4,6 +4,51 @@ Tài liệu này ghi lại toàn bộ lịch sử các phiên bản phát hành 
 
 ---
 
+### [v1.1.2] - 2026-06-07
+
+#### - **[Sửa lỗi]**
+- Khắc phục lỗi không nạp được tiện ích `"Could not load icon 'icon.png' specified in 'icons'"` trên Chrome/Edge do kích thước file ảnh không khớp cấu hình:
+  - Phân tách và tạo ra 4 kích cỡ biểu tượng PNG trong suốt tiêu chuẩn: 16x16 (`icon16.png`), 32x32 (`icon32.png`), 48x48 (`icon48.png`), và 128x128 (`icon128.png`) cho cả hai tiện ích.
+  - Sử dụng Chrome Headless kết xuất trực tiếp các kích cỡ này từ tệp biểu tượng Fluent SVG gốc.
+  - Loại bỏ tệp biểu tượng dùng chung `icon.png` không chuẩn.
+- **[Cập nhật]**
+  - Cập nhật cấu hình `action.default_icon` và `icons` trong `manifest.json` của cả `EdgeHistoryPopup` và `EdgeDownloadsPopup` sang dạng đối tượng ánh xạ riêng từng tệp ảnh PNG với kích cỡ tương ứng (học tập từ dự án tham chiếu `QRScan`).
+  - Đồng bộ nâng phiên bản của cả hai tiện ích lên `1.1.2` tại các tệp `manifest.json`.
+
+---
+
+### [v1.1.1] - 2026-06-07
+
+#### - **[Sửa lỗi]**
+- Khắc phục triệt để lỗi "Could not load icon 'icon.png' specified in 'icons'" khi nạp tiện ích:
+  - Bản chất là do tiến trình chạy Chrome Headless ở phiên trước diễn ra không đồng bộ (asynchronous) dẫn đến tiến trình bị tắt trước khi kịp ghi file ảnh `icon.png` ra đĩa cứng.
+  - Sửa đổi lệnh render sử dụng cơ chế gọi `Start-Process -Wait` để bắt buộc tiến trình Chrome Headless hoàn tất việc ghi tệp PNG ra đĩa cứng 100% rồi mới kết thúc lệnh.
+  - Tạo thành công các tệp `icon.png` sắc nét với kích thước chuẩn 128x128 cho cả hai thư mục tiện ích.
+- Đồng bộ nâng phiên bản của cả hai tiện ích lên `1.1.1` tại các tệp `manifest.json`.
+
+---
+
+### [v1.1.0] - 2026-06-07
+
+#### - **[Sửa lỗi]**
+- Khắc phục lỗi không hiển thị icon tiện ích trên trang quản lý mở rộng (`chrome://extensions/`) và thanh công cụ:
+  - Bản chất là do Chrome chưa hỗ trợ tệp định dạng vector SVG cho trường `icons` toàn cục trong `manifest.json`.
+  - Tiến hành viết script render tự động vẽ các tệp biểu tượng SVG gốc sang định dạng PNG trong suốt (`icon.png`) chất lượng cao (128x128) bằng nhân trình duyệt Chrome Headless.
+  - Cập nhật cấu hình `manifest.json` của cả `EdgeHistoryPopup` và `EdgeDownloadsPopup` trỏ trường `default_icon` và `icons` sang tệp ảnh PNG mới tạo để tương thích hoàn hảo.
+- Đồng bộ nâng phiên bản của cả hai tiện ích lên `1.1.0` tại các tệp `manifest.json`.
+
+---
+
+### [v1.0.9] - 2026-06-07
+
+#### - **[Cập nhật]**
+- Cập nhật biểu tượng chính thức cho tiện ích:
+  - Thay thế biểu tượng cũ của `EdgeHistoryPopup` bằng tệp [history_filled_icon_202154.svg](file:///d:/CodePython/CustomeExtensionForChrome/EdgeHistoryPopup/icon.svg) định dạng Filled chuẩn Microsoft Fluent.
+  - Thay thế biểu tượng cũ của `EdgeDownloadsPopup` bằng tệp [arrow_download_filled_icon_201617.svg](file:///d:/CodePython/CustomeExtensionForChrome/EdgeDownloadsPopup/icon.svg) định dạng Filled chuẩn Microsoft Fluent.
+- Đồng bộ nâng phiên bản của cả hai tiện ích lên `1.0.9` tại các tệp `manifest.json`.
+
+---
+
 ### [v1.0.8] - 2026-06-07
 
 #### - **[Sửa lỗi]**

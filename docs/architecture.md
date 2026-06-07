@@ -30,13 +30,21 @@ d:/CodePython/CustomeExtensionForChrome/
 │   ├── popup.html                      # Giao diện popup lịch sử
 │   ├── popup.css                       # Kiểu giao diện tối Fluent
 │   ├── popup.js                        # Logic truy vấn & xử lý lịch sử
-│   └── icon.svg                        # Icon tiện ích Lịch sử (SVG)
+│   ├── icon.svg                        # Icon gốc dạng SVG
+│   ├── icon16.png                      # Icon kích thước 16x16
+│   ├── icon32.png                      # Icon kích thước 32x32
+│   ├── icon48.png                      # Icon kích thước 48x48
+│   └── icon128.png                     # Icon kích thước 128x128
 └── EdgeDownloadsPopup/                 # Extension Lượt tải xuống phong cách Edge
     ├── manifest.json                   # Cấu hình extension lượt tải
     ├── popup.html                      # Giao diện popup lượt tải
     ├── popup.css                       # Kiểu giao diện và progress bar
     ├── popup.js                        # Logic theo dõi & thao tác tải xuống
-    └── icon.svg                        # Icon tiện ích Lượt tải (SVG)
+    ├── icon.svg                        # Icon gốc dạng SVG
+    ├── icon16.png                      # Icon kích thước 16x16
+    ├── icon32.png                      # Icon kích thước 32x32
+    ├── icon48.png                      # Icon kích thước 48x48
+    └── icon128.png                     # Icon kích thước 128x128
 ```
 
 ---
