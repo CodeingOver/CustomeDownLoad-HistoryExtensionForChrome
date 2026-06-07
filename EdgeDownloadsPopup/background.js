@@ -494,6 +494,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'get-session-downloads') {
     sendResponse({ sessionDownloadIds: Array.from(sessionDownloadIds) });
   } else if (request.action === 'clear-complete-badge') {
+    const hasActiveDownloads = Object.values(activeDownloads).some(item =>
+      item &&
+      item.state === 'in_progress'
+    );
+
+    if (hasActiveDownloads) {
+      isCompleteState = false;
+      updateBadgeAndAnimation();
+      return;
+    }
+
     isCompleteState = false;
     chrome.action.setBadgeText({ text: '' });
     stopAnimation(); // Khôi phục biểu tượng mặc định

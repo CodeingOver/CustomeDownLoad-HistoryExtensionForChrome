@@ -4,6 +4,17 @@ Tài liệu này ghi lại toàn bộ lịch sử các phiên bản phát hành 
 
 ---
 
+### [v1.2.22] - 2026-06-07
+
+#### - **[Sửa lỗi]**
+- Khắc phục hiện tượng badge phần trăm tải xuống bị mất tạm thời khi người dùng mở popup Downloads:
+  - Giữ lại badge tiến trình nếu `activeDownloads` vẫn còn tệp ở trạng thái `in_progress`.
+  - Khi popup gửi `clear-complete-badge`, Service Worker sẽ vẽ lại phần trăm ngay bằng `updateBadgeAndAnimation()` thay vì xóa badge vô điều kiện.
+  - Chỉ xóa badge và khôi phục icon mặc định khi không còn tệp đang tải, đúng với mục đích dọn trạng thái hoàn tất.
+
+#### - **[Cập nhật]**
+- Đồng bộ nâng phiên bản của cả hai tiện ích mở rộng lên `1.2.22` tại các tệp `manifest.json`.
+
 ### [v1.2.21] - 2026-06-07
 
 #### - **[Sửa lỗi]**
