@@ -4,6 +4,23 @@ Tài liệu này ghi lại toàn bộ lịch sử các phiên bản phát hành 
 
 ---
 
+### [v1.2.0] - 2026-06-07
+
+#### - **[Thêm mới]**
+- Tích hợp tính năng hoạt ảnh tải xuống custom (Custom Download Animation) phong cách Edge Fluent Toast:
+  - Tạo tệp Content Script [content.js](file:///d:/CodePython/CustomeExtensionForChrome/EdgeDownloadsPopup/content.js) bọc giao diện thông báo bằng cơ chế Shadow DOM để tránh xung đột phong cách CSS với các trang web mẹ.
+  - Vẽ card thông báo Toast Acrylic Fluent góc trên bên phải trang web hiện tại với các thông tin: tên file, tiến trình hình tròn xoay động (Circular Progress Ring), tỷ lệ phần trăm và dung lượng đã tải.
+  - Tích hợp hiệu ứng hoạt ảnh hạt màu bay tỏa (particle burst explosion) khi tệp tải xuống hoàn tất 100%.
+  - Tạo tệp Service Worker [background.js](file:///d:/CodePython/CustomeExtensionForChrome/EdgeDownloadsPopup/background.js) lắng nghe sự kiện `chrome.downloads` toàn cục để cập nhật tiến trình tải xuống và bắn tin nhắn đồng bộ tiến trình tới tab hiện đang active.
+  - Hỗ trợ đổi tab mượt mà (Multi-tab Sync): Tự động lắng nghe sự kiện đổi tab (`chrome.tabs.onActivated`) để chuyển và tiếp tục vẽ hoạt ảnh tiến trình tải xuống trên tab mới mà không bị gián đoạn.
+  - Triển khai hoạt ảnh nhấp nháy phát sáng (Glow Flashing Animation) trên thanh công cụ của trình duyệt bằng cách thay thế tuần hoàn giữa icon trắng tiêu chuẩn và icon xanh Fluent (`icon_glow*.png`) mỗi 800ms khi tệp đang tải, kết hợp hiển thị số phần trăm tiến trình trực tiếp trên Badge.
+  - Cho phép click nút "Open" trên card toast để mở trực tiếp tệp tin đã tải thông qua gửi message gọi `chrome.downloads.open`.
+- **[Cập nhật]**
+  - Cấu hình lại [EdgeDownloadsPopup/manifest.json](file:///d:/CodePython/CustomeExtensionForChrome/EdgeDownloadsPopup/manifest.json) đăng ký background script, content script và quyền `activeTab`.
+  - Đồng bộ nâng phiên bản của cả hai tiện ích mở rộng lên phiên bản Minor mới `1.2.0`.
+
+---
+
 ### [v1.1.5] - 2026-06-07
 
 #### - **[Sửa lỗi]**

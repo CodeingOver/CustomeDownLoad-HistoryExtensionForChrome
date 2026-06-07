@@ -40,11 +40,18 @@ d:/CodePython/CustomeExtensionForChrome/
     ├── popup.html                      # Giao diện popup lượt tải
     ├── popup.css                       # Kiểu giao diện và progress bar
     ├── popup.js                        # Logic theo dõi & thao tác tải xuống
-    ├── icon.svg                        # Icon gốc dạng SVG
-    ├── icon16.png                      # Icon kích thước 16x16
-    ├── icon32.png                      # Icon kích thước 32x32
-    ├── icon48.png                      # Icon kích thước 48x48
-    └── icon128.png                     # Icon kích thước 128x128
+    ├── background.js                   # Service Worker toàn cục quản lý tiến trình tải
+    ├── content.js                      # Content Script hiển thị hoạt ảnh Toast Fluent
+    ├── icon.svg                        # Icon gốc dạng SVG (trắng)
+    ├── icon16.png                      # Icon trắng kích thước 16x16
+    ├── icon32.png                      # Icon trắng kích thước 32x32
+    ├── icon48.png                      # Icon trắng kích thước 48x48
+    ├── icon128.png                     # Icon trắng kích thước 128x128
+    ├── icon_glow.svg                   # Icon phát sáng dạng SVG (xanh Fluent)
+    ├── icon_glow16.png                 # Icon xanh kích thước 16x16
+    ├── icon_glow32.png                 # Icon xanh kích thước 32x32
+    ├── icon_glow48.png                 # Icon xanh kích thước 48x48
+    └── icon_glow128.png                # Icon xanh kích thước 128x128
 ```
 
 ---
@@ -56,8 +63,9 @@ Hệ thống chia làm hai thành phần lớn tương ứng với hai tiện í
    - Giao diện người dùng (`popup.html` & `popup.css`): Hiển thị cấu trúc tab và danh sách kết quả.
    - Trình điều khiển logic (`popup.js`): Giao tiếp với API trình duyệt (`chrome.history` và `chrome.sessions`) để lấy lịch sử, khôi phục tab đã đóng, và tương tác với các thiết bị được đồng bộ.
 2. **Thành phần Tải xuống (Downloads Component)**:
-   - Giao diện người dùng: Hiển thị danh sách tệp tải xuống, liên kết mở tệp và thanh tiến trình thời gian thực.
-   - Trình điều khiển logic: Sử dụng `chrome.downloads` để lắng nghe quá trình tải, tính toán tiến trình (%), mở tệp vật lý, và hiển thị vị trí lưu trữ trên ổ đĩa.
+   - Giao diện người dùng (`popup.html`, `popup.css`, `popup.js`): Hiển thị danh sách tải xuống, mở tệp, hiển thị vị trí và xóa lịch sử tải xuống.
+   - Service Worker (`background.js`): Chạy ngầm toàn cục để theo dõi các thay đổi tải xuống, tính toán tổng phần trăm, điều khiển Badge nhấp nháy Fluent và bắn thông báo tới tab đang mở.
+   - Content Script (`content.js`): Chèn Card Fluent Toast bọc Shadow DOM độc lập để hiển thị tiến trình hình tròn và hiệu ứng nổ hạt hoàn tất trên trang web đang active.
 
 ---
 
@@ -73,9 +81,10 @@ Hệ thống chia làm hai thành phần lớn tương ứng với hai tiện í
 ### Luồng 2: Theo dõi và cập nhật tiến trình tải xuống
 1. Người dùng bắt đầu tải xuống một tệp tin.
 2. Trình duyệt kích hoạt sự kiện `chrome.downloads.onCreated`.
-3. Tiện ích nhận sự kiện, thêm tệp tải xuống vào danh sách ở trạng thái `in_progress`.
-4. Sự kiện `chrome.downloads.onChanged` liên tục kích hoạt, tiện ích đọc giá trị `bytesReceived` và `totalBytes` để tính toán phần trăm hoàn thành và cập nhật thanh tiến trình.
-5. Khi hoàn tất, giao diện ẩn thanh tiến trình và hiển thị đường link mở tệp ("Open file").
+3. Background Service Worker nhận sự kiện, lưu tệp vào hàng đợi tải xuống, khởi động hoạt ảnh nhấp nháy phát sáng (glow icon) và hiển thị % tải xuống trực tiếp trên thanh công cụ (Badge).
+4. Sự kiện `chrome.downloads.onChanged` liên tục kích hoạt. Service Worker tính toán phần trăm hoàn thành, cập nhật Badge và gửi tin nhắn tới Content Script trên tab active.
+5. Content Script vẽ card Fluent Toast bọc Shadow DOM ở góc trên bên phải, hiển thị tiến trình xoay tròn Circular Progress.
+6. Khi hoàn tất, Service Worker gửi tin nhắn hoàn thành, kích hoạt hoạt ảnh hạt màu nổ (particle explode) trên card Toast của Content Script, tự động biến mất sau 5 giây.
 
 ---
 
@@ -99,6 +108,10 @@ Hệ thống sử dụng các API gốc của trình duyệt Chrome:
 - `chrome.downloads.show`: Hiển thị vị trí tệp tin trong thư mục lưu trữ (File Explorer).
 - `chrome.downloads.erase`: Xóa tệp tin khỏi lịch sử tải xuống.
 - `chrome.downloads.showDefaultFolder`: Mở thư mục tải xuống mặc định của hệ điều hành.
+- `chrome.action.setIcon`: Thay đổi biểu tượng (icon) trên thanh công cụ động.
+- `chrome.action.setBadgeText`: Cập nhật văn bản chỉ số badge (phần trăm).
+- `chrome.runtime.onMessage.addListener`: Lắng nghe tin nhắn trao đổi dữ liệu giữa các thành phần.
+- `chrome.tabs.onActivated`: Lắng nghe sự kiện người dùng chuyển đổi tab để đồng bộ hoạt ảnh tải xuống.
 
 ---
 
