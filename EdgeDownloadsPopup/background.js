@@ -13,6 +13,7 @@ const RESTORED_DOWNLOAD_SKEW_MS = 2000;
 const PROGRESS_BATCH_INTERVAL_MS = 3000;
 let hasCompletedStartupDownloadScan = false;
 let progressBatchTimer = null;
+let lastTerminalDownloadState = null;
 
 // Theo dõi trạng thái đóng/mở của cửa sổ popup bằng cơ chế Port Connection
 chrome.runtime.onConnect.addListener((port) => {
@@ -41,6 +42,7 @@ chrome.downloads.onCreated.addListener((item) => {
     paused: item.paused || false,
     error: item.error || null
   };
+  lastTerminalDownloadState = null;
   
   // Chỉ tự động hiển thị popup cho lượt tải mới, không mở khi Chrome khôi phục download cũ lúc startup.
   if (shouldAutoOpenPopupForCreatedDownload(item)) {
@@ -162,6 +164,7 @@ function handleDelta(id, delta) {
   // Handle completion or failure
   if (item.state === 'complete' || item.state === 'interrupted') {
     sendProgressToPopup(item, 'download-complete');
+    lastTerminalDownloadState = item.state;
     delete activeDownloads[id];
     updateBadgeAndAnimation();
   } else {
@@ -183,6 +186,12 @@ function handleDelta(id, delta) {
  ********************************************************************************/
 function updateBadgeAndAnimation() {
   console.log("[updateBadgeAndAnimation] Toàn bộ activeDownloads:", JSON.stringify(activeDownloads));
+
+  const pausedItems = Object.values(activeDownloads).filter(item =>
+    item &&
+    item.state === 'in_progress' &&
+    item.paused
+  );
   
   // Lọc lấy danh sách các tệp đang tải thực sự từ activeDownloads bộ nhớ
   let activeItems = Object.values(activeDownloads).filter(item => 
@@ -200,15 +209,28 @@ function updateBadgeAndAnimation() {
 
   if (activeItems.length === 0) {
     console.log("[updateBadgeAndAnimation] Không có tệp nào đang tải (activeItems rỗng).");
+    if (pausedItems.length > 0) {
+      console.log("[updateBadgeAndAnimation] Tất cả lượt tải đang bị tạm dừng.");
+      wasDownloading = true;
+      isCompleteState = false;
+      chrome.action.setBadgeBackgroundColor({ color: '#6b6b6b' });
+      chrome.action.setBadgeText({ text: 'PAUS' });
+      stopAnimation();
+      closeOffscreenDocument();
+      return;
+    }
+
     if (wasDownloading) {
       // Vừa tải xong: hiển thị Icon hoàn thành với checkmark (chỉ hiển thị nếu popup không mở)
-      if (!isPopupOpen) {
+      if (lastTerminalDownloadState === 'complete' && !isPopupOpen) {
         showCompletionBadge();
       } else {
         isCompleteState = false;
+        chrome.action.setBadgeText({ text: '' });
         stopAnimation();
       }
       wasDownloading = false;
+      lastTerminalDownloadState = null;
     } else {
       // Kiểm tra để không xóa nhầm Icon checkmark đang hiển thị
       if (!isCompleteState) {
@@ -225,6 +247,7 @@ function updateBadgeAndAnimation() {
   ensureOffscreenDocument();
   wasDownloading = true;
   isCompleteState = false;
+  lastTerminalDownloadState = null;
   startAnimation();
 
   let totalBytes = 0;

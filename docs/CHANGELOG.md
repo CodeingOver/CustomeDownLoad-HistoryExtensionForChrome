@@ -4,6 +4,17 @@ Tài liệu này ghi lại toàn bộ lịch sử các phiên bản phát hành 
 
 ---
 
+### [v1.2.23] - 2026-06-07
+
+#### - **[Sửa lỗi]**
+- Sửa trạng thái badge của tiện ích Downloads khi tạm dừng hoặc hủy tải:
+  - Khi người dùng hủy tải xuống và download chuyển sang `interrupted`, Service Worker xóa badge phần trăm ngay thay vì để lại phần trăm cũ trên thanh công cụ.
+  - Khi toàn bộ lượt tải đang ở trạng thái tạm dừng (`paused`), badge chuyển sang nhãn `PAUS` trên nền xám để người dùng biết tiến trình đang bị dừng chủ động.
+  - Chỉ hiển thị icon hoàn tất màu xanh khi trạng thái kết thúc cuối cùng thật sự là `complete`, tránh diễn giải nhầm lượt tải bị hủy hoặc lỗi thành hoàn tất.
+
+#### - **[Cập nhật]**
+- Đồng bộ nâng phiên bản của cả hai tiện ích mở rộng lên `1.2.23` tại các tệp `manifest.json`.
+
 ### [v1.2.22] - 2026-06-07
 
 #### - **[Sửa lỗi]**
