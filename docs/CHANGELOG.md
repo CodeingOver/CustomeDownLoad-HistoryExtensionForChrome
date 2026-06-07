@@ -4,6 +4,16 @@ Tài liệu này ghi lại toàn bộ lịch sử các phiên bản phát hành 
 
 ---
 
+### [v1.1.3] - 2026-06-07
+
+#### - **[Cập nhật]**
+- Cập nhật tài nguyên hình ảnh biểu tượng gốc (PNG) chất lượng cao do người dùng cung cấp trực tiếp:
+  - Sử dụng biểu tượng tải xuống Fluent chính thức [arrow_download_filled_icon_201617.png](file:///d:/CodePython/CustomeExtensionForChrome/arrow_download_filled_icon_201617.png) và biểu tượng lịch sử Fluent chính thức [history_filled_icon_202154.png](file:///d:/CodePython/CustomeExtensionForChrome/history_filled_icon_202154.png).
+  - Sử dụng script PowerShell (`resize.ps1`) gọi thư viện đồ họa .NET để thực hiện nén và thu nhỏ ảnh PNG gốc từ độ phân giải 512x512 thành 4 kích cỡ tiêu chuẩn `16x16`, `32x32`, `48x48`, và `128x128` có độ trong suốt và sắc nét tuyệt đối.
+  - Đồng bộ nâng phiên bản của cả hai tiện ích lên `1.1.3` tại các tệp `manifest.json`.
+
+---
+
 ### [v1.1.2] - 2026-06-07
 
 #### - **[Sửa lỗi]**
