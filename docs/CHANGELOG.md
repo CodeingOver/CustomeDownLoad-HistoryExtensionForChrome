@@ -14,8 +14,9 @@ Tài liệu này ghi lại toàn bộ lịch sử các phiên bản phát hành 
   - Loại bỏ cơ chế polling không hoạt động bằng `setInterval` trực tiếp trong Service Worker [background.js](file:///d:/CodePython/CustomeExtensionForChrome/EdgeDownloadsPopup/background.js).
   - Sử dụng cơ chế gọi `ensureOffscreenDocument()` và `closeOffscreenDocument()` để tự động kích hoạt tài liệu ẩn khi có lượt tải và đóng lại ngay khi hoàn thành để tiết kiệm năng lượng.
   - Nhận tin nhắn `'polling-tick'` (nhịp tim) định kỳ từ Offscreen Document để đánh thức Service Worker, giúp Service Worker tự truy vấn dữ liệu tiến độ thực tế và cập nhật chỉ số phần trăm chính xác trên badge của thanh công cụ.
-- Sửa lỗi tiến độ tải tại giao diện popup không cập nhật thời gian thực:
   - Bổ sung cơ chế polling trực tiếp tại chỗ (in-place) mỗi 1 giây trong [popup.js](file:///d:/CodePython/CustomeExtensionForChrome/EdgeDownloadsPopup/popup.js), trực tiếp thay đổi thanh tiến trình (`width`) và nhãn phần trăm hiển thị của các thẻ `li` đang tải mà không cần vẽ lại toàn bộ danh sách, đem lại trải nghiệm mượt mà không bị chớp nháy.
+- Khắc phục lỗi `Uncaught (in promise) Error: Download file already deleted` khi mở tệp đã bị xóa khỏi đĩa cứng:
+  - Bọc tất cả các cuộc gọi `chrome.downloads.open()` trong [background.js](file:///d:/CodePython/CustomeExtensionForChrome/EdgeDownloadsPopup/background.js) và [popup.js](file:///d:/CodePython/CustomeExtensionForChrome/EdgeDownloadsPopup/popup.js) vào khối `.catch()` để bắt và xử lý các trường hợp ngoại lệ một cách êm đẹp (chỉ ghi log cảnh báo chứ không gây crash hoặc quăng lỗi không được kiểm soát).
 
 - Tối ưu hóa hiệu năng và giảm tải CPU trong suốt quá trình tải xuống:
   - Giảm tần suất nhịp tim trong [offscreen.js](file:///d:/CodePython/CustomeExtensionForChrome/EdgeDownloadsPopup/offscreen.js) và polling cập nhật giao diện trong [popup.js](file:///d:/CodePython/CustomeExtensionForChrome/EdgeDownloadsPopup/popup.js) từ 1 giây thành 2 giây (2000ms), giúp giảm một nửa (50%) số lượng lời gọi API và cập nhật DOM.

@@ -396,7 +396,9 @@ chrome.tabs.onActivated.addListener((activeInfo) => {
 // Listen for message from content script to open file
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'open-file') {
-    chrome.downloads.open(request.id);
+    chrome.downloads.open(request.id).catch((err) => {
+      console.warn("[background.js] Không thể mở tệp:", err.message);
+    });
   } else if (request.action === 'get-session-downloads') {
     sendResponse({ sessionDownloadIds: Array.from(sessionDownloadIds) });
   } else if (request.action === 'clear-complete-badge') {

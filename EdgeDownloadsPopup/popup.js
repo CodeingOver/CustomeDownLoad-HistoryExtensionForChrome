@@ -266,13 +266,17 @@ document.addEventListener('DOMContentLoaded', function () {
         openLink.textContent = 'Open file';
         openLink.addEventListener('click', (e) => {
           e.stopPropagation();
-          chrome.downloads.open(item.id);
+          chrome.downloads.open(item.id).catch((err) => {
+            console.warn("[popup.js] Không thể mở tệp:", err.message);
+          });
         });
         contentDiv.appendChild(openLink);
 
         // Click on the entire row opens the file too
         li.addEventListener('click', () => {
-          chrome.downloads.open(item.id);
+          chrome.downloads.open(item.id).catch((err) => {
+            console.warn("[popup.js] Không thể mở tệp:", err.message);
+          });
         });
       }
     } else if (item.state === 'interrupted') {
