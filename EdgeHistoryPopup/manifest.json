@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "Edge History",
+  "version": "1.0",
+  "description": "Popup xem lịch sử thiết kế Fluent phong cách Edge",
+  "permissions": [
+    "history",
+    "favicon",
+    "sessions"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": "icon.svg"
+  },
+  "icons": {
+    "16": "icon.svg",
+    "32": "icon.svg",
+    "48": "icon.svg",
+    "128": "icon.svg"
+  }
+}
