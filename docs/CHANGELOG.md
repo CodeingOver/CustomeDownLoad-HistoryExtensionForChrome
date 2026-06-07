@@ -4,6 +4,18 @@ Tài liệu này ghi lại toàn bộ lịch sử các phiên bản phát hành 
 
 ---
 
+### [v1.2.5] - 2026-06-07
+
+#### - **[Sửa lỗi]**
+- Khắc phục triệt để lỗi kẹt hiển thị chỉ số `0%` trên Badge thanh công cụ khi tệp tải thực tế đang tiến triển bình thường:
+  - Viết lại thuật toán tính toán Badge trong [background.js](file:///d:/CodePython/CustomeExtensionForChrome/EdgeDownloadsPopup/background.js) để loại bỏ các tệp tải chưa bắt đầu nhận dữ liệu (`bytesReceived === 0`).
+  - Tránh các tệp tin đang chờ máy chủ phản hồi (pending), bị nghẽn (stalled), hoặc đang chờ người dùng xác nhận cảnh báo bảo mật (unconfirmed download danger) kéo tụt chỉ số phần trăm của tệp đang tải thật xuống `0%`.
+
+#### - **[Cập nhật]**
+- Đồng bộ nâng phiên bản của cả hai tiện ích mở rộng lên phiên bản mới `1.2.5`.
+
+---
+
 ### [v1.2.4] - 2026-06-07
 
 #### - **[Sửa lỗi]**

@@ -91,7 +91,7 @@ function handleDelta(id, delta) {
 function updateBadgeAndAnimation() {
   chrome.downloads.search({ state: 'in_progress' }, (items) => {
     // Chỉ tính toán tiến trình cho các tệp đang thực sự tải (loại bỏ tệp tạm dừng)
-    const activeItems = (items || []).filter(item => !item.paused);
+    let activeItems = (items || []).filter(item => !item.paused);
     
     if (activeItems.length === 0) {
       chrome.action.setBadgeText({ text: '' });
@@ -101,6 +101,13 @@ function updateBadgeAndAnimation() {
 
     // Đang có tệp tải xuống: kích hoạt hoạt ảnh nhấp nháy
     startAnimation();
+
+    // Loại bỏ các tệp tin chưa bắt đầu nhận dữ liệu (bytesReceived === 0) 
+    // để tránh các tệp bị nghẽn/chờ xác nhận kéo tụt chỉ số phần trăm của tệp đang chạy.
+    const downloadingItems = activeItems.filter(item => item.bytesReceived > 0);
+    if (downloadingItems.length > 0) {
+      activeItems = downloadingItems;
+    }
 
     let totalBytes = 0;
     let bytesReceived = 0;
