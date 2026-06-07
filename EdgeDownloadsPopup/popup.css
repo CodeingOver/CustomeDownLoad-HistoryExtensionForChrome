@@ -289,11 +289,14 @@ body {
 .item-controls {
   position: absolute;
   right: 12px;
-  top: 12px;
+  top: 50%;
+  transform: translateY(-50%);
   display: none;
-  gap: 4px;
+  gap: 6px;
   background-color: var(--bg-hover);
-  padding-left: 8px;
+  padding-left: 12px;
+  align-items: center;
+  height: 32px;
 }
 
 .download-item:hover .item-controls {
@@ -305,21 +308,22 @@ body {
   border: none;
   color: var(--text-secondary);
   cursor: pointer;
-  padding: 4px;
+  width: 28px;
+  height: 28px;
   border-radius: 4px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: color 0.1s, background 0.1s;
+  transition: color 0.1s, background-color 0.1s;
 }
 
 .control-btn:hover {
-  background-color: #3c3c3c;
+  background-color: rgba(255, 255, 255, 0.08);
   color: var(--text-primary);
 }
 
-.control-btn.btn-delete:hover {
-  color: #ff6b6b;
+.control-btn:active {
+  background-color: rgba(255, 255, 255, 0.15);
 }
 
 /* Empty State */

@@ -4,6 +4,34 @@ Tài liệu này ghi lại toàn bộ lịch sử các phiên bản phát hành 
 
 ---
 
+### [v1.0.8] - 2026-06-07
+
+#### - **[Sửa lỗi]**
+- Khắc phục lỗi không tự động cập nhật lại giao diện ngay lập tức sau khi nhấn "Delete file" (xóa tệp vật lý) bằng cách gọi trực tiếp hàm cập nhật `loadDownloads()` trong callback của `chrome.downloads.removeFile`.
+- Đồng bộ nâng phiên bản của cả hai tiện ích lên `1.0.8` tại các tệp `manifest.json`.
+
+---
+
+### [v1.0.7] - 2026-06-07
+
+#### - **[Sửa lỗi]**
+- Khắc phục logic nút Thùng rác (Xóa) của tiện ích Downloads:
+  - Nếu tệp tin vẫn còn tồn tại trên ổ đĩa, nút thùng rác sẽ thực hiện **Xóa tệp vật lý khỏi máy tính** (`chrome.downloads.removeFile`) và hiển thị tooltip là "Delete file" khớp hoàn toàn với Edge.
+  - Nếu tệp tin đã bị xóa khỏi đĩa trước đó (trạng thái "Removed") hoặc bị lỗi, nút thùng rác sẽ thực hiện **Xóa dòng lịch sử khỏi danh sách** (`chrome.downloads.erase`) với tooltip "Remove from history".
+- Đồng bộ nâng phiên bản của cả hai tiện ích `Edge History` và `Edge Downloads` lên `1.0.7` tại các tệp `manifest.json`.
+
+---
+
+### [v1.0.6] - 2026-06-07
+
+#### - **[Cập nhật]**
+- Tăng kích thước nút hành động (dấu X xóa lịch sử, mở Folder, Thùng rác) lên **28px** x **28px** để khớp hoàn toàn với thiết kế thực tế của Microsoft Edge.
+- Chuyển đổi toàn bộ icon hành động (dấu X, Folder, Thùng rác) sang dạng nét viền (outline) Fluent UI sắc nét (viewBox 20x20, stroke-width 1.5).
+- Tùy chỉnh hiệu ứng hover của các nút hành động sang kiểu nền Fluent bán trong suốt (`rgba(255, 255, 255, 0.08)`) và loại bỏ hover màu đỏ giúp giao diện đồng nhất, tinh tế.
+- Đồng bộ nâng phiên bản của cả hai tiện ích `Edge History` và `Edge Downloads` lên `1.0.6` tại các tệp `manifest.json`.
+
+---
+
 ### [v1.0.5] - 2026-06-07
 
 #### - **[Sửa lỗi]**

@@ -248,8 +248,8 @@ document.addEventListener('DOMContentLoaded', function () {
     deleteBtn.className = 'item-delete';
     deleteBtn.title = 'Remove from history';
     deleteBtn.innerHTML = `
-      <svg viewBox="0 0 16 16" width="10" height="10">
-        <path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M3 3l10 10M13 3L3 13"/>
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+        <path d="M4 4l12 12M16 4L4 16"/>
       </svg>
     `;
 

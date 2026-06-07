@@ -276,7 +276,7 @@ body {
   right: 12px;
   top: 50%;
   transform: translateY(-50%);
-  background-color: var(--bg-hover);
+  background-color: transparent;
   color: var(--text-secondary);
   border: none;
   border-radius: 4px;
@@ -284,13 +284,23 @@ body {
   display: none;
   align-items: center;
   justify-content: center;
-  padding: 4px;
-  transition: color 0.1s, background 0.1s;
+  width: 28px;
+  height: 28px;
+  transition: color 0.1s, background-color 0.1s;
 }
 
 .item-delete:hover {
-  background-color: #3c3c3c;
-  color: #ff6b6b;
+  background-color: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+}
+
+.item-delete:active {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.item-delete svg {
+  width: 14px;
+  height: 14px;
 }
 
 .history-item:hover .item-time {

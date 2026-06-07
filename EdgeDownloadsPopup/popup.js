@@ -260,8 +260,8 @@ document.addEventListener('DOMContentLoaded', function () {
       showFolderBtn.className = 'control-btn';
       showFolderBtn.title = 'Show in folder';
       showFolderBtn.innerHTML = `
-        <svg viewBox="0 0 16 16" width="12" height="12">
-          <path fill="currentColor" d="M1.5 3A1.5 1.5 0 0 1 3 1.5h3.84a1.5 1.5 0 0 1 1.06.44l1.32 1.32c.1.1.23.15.37.15H13A1.5 1.5 0 0 1 14.5 5v7.5A1.5 1.5 0 0 1 13 14H3a1.5 1.5 0 0 1-1.5-1.5V3zM3 2.5a.5.5 0 0 0-.5.5v9a.5.5 0 0 0 .5.5h10a.5.5 0 0 0 .5-.5V5a.5.5 0 0 0-.5-.5H9.13a1.5 1.5 0 0 1-1.06-.44L6.75 2.74A.5.5 0 0 0 6.4 2.6H3v-.1z"/>
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+          <path d="M2.5 4.5A1.5 1.5 0 0 1 4 3h3.5a1.5 1.5 0 0 1 1 .4l1.2 1.2a1.5 1.5 0 0 0 1 .4H16a1.5 1.5 0 0 1 1.5 1.5v7A1.5 1.5 0 0 1 16 15H4a1.5 1.5 0 0 1-1.5-1.5v-9z"/>
         </svg>
       `;
       showFolderBtn.addEventListener('click', (e) => {
@@ -271,30 +271,52 @@ document.addEventListener('DOMContentLoaded', function () {
       controlsDiv.appendChild(showFolderBtn);
     }
 
-    // Erase button (trash)
+    // Erase/Delete button (trash)
     const eraseBtn = document.createElement('button');
     eraseBtn.className = 'control-btn btn-delete';
-    eraseBtn.title = 'Remove from download history';
+    
+    // Check if the file still exists to decide function
+    const fileExists = item.state === 'complete' && item.exists;
+    if (fileExists) {
+      eraseBtn.title = 'Delete file';
+      eraseBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        chrome.downloads.removeFile(item.id, () => {
+          if (chrome.runtime.lastError) {
+            // Fallback to erase if removing file fails
+            chrome.downloads.erase({ id: item.id }, () => {
+              loadDownloads();
+            });
+          } else {
+            // Success: reload downloads list to update UI to "Removed" state
+            loadDownloads();
+          }
+        });
+      });
+    } else {
+      eraseBtn.title = 'Remove from history';
+      eraseBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        chrome.downloads.erase({ id: item.id }, () => {
+          // Fade out animation
+          li.style.opacity = '0';
+          li.style.transform = 'translateX(-10px)';
+          li.style.transition = 'opacity 0.2s, transform 0.2s';
+          setTimeout(() => {
+            li.remove();
+            if (list.querySelectorAll('.download-item').length === 0) {
+              emptyState.classList.remove('hidden');
+            }
+          }, 200);
+        });
+      });
+    }
+
     eraseBtn.innerHTML = `
-      <svg viewBox="0 0 16 16" width="12" height="12">
-        <path fill="currentColor" d="M5.5 1v1h5V1h-5zM3 3h10v1H3V3zm1 2h8v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5zm2 1v7h1V6H6zm3 0v7h1V6H9z"/>
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+        <path d="M3 5h14M7 5V3.5A1.5 1.5 0 0 1 8.5 2h3A1.5 1.5 0 0 1 13 3.5V5m2.5 0v10.5a1.5 1.5 0 0 1-1.5 1.5H6a1.5 1.5 0 0 1-1.5-1.5V5h11z"/>
       </svg>
     `;
-    eraseBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      chrome.downloads.erase({ id: item.id }, () => {
-        // Fade out animation
-        li.style.opacity = '0';
-        li.style.transform = 'translateX(-10px)';
-        li.style.transition = 'opacity 0.2s, transform 0.2s';
-        setTimeout(() => {
-          li.remove();
-          if (list.querySelectorAll('.download-item').length === 0) {
-            emptyState.classList.remove('hidden');
-          }
-        }, 200);
-      });
-    });
     controlsDiv.appendChild(eraseBtn);
 
     li.appendChild(iconDiv);
