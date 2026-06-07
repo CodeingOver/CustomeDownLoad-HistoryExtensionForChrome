@@ -24,6 +24,7 @@ Tài liệu này ghi lại toàn bộ lịch sử các phiên bản phát hành 
 
 #### - **[Cập nhật]**
 - Cấu hình quyền `"offscreen"` trong tệp [manifest.json (Downloads)](file:///d:/CodePython/CustomeExtensionForChrome/EdgeDownloadsPopup/manifest.json).
+- Tích hợp thuộc tính `"incognito": "split"` vào cả hai tiện ích [manifest.json (Downloads)](file:///d:/CodePython/CustomeExtensionForChrome/EdgeDownloadsPopup/manifest.json) và [manifest.json (History)](file:///d:/CodePython/CustomeExtensionForChrome/EdgeHistoryPopup/manifest.json) nhằm phân tách hoàn toàn quy trình xử lý, bộ nhớ đệm và dữ liệu tải xuống/lịch sử giữa phiên duyệt web thường và phiên duyệt web ẩn danh, tối ưu tính bảo mật dữ liệu và mang lại trải nghiệm độc lập mượt mà.
 - Đồng bộ nâng phiên bản của cả hai tiện ích mở rộng lên `1.2.13` tại các tệp `manifest.json`.
 
 ### [v1.2.12] - 2026-06-07
