@@ -1,5 +1,6 @@
 let activeDownloads = {};
 let sessionDownloadIds = new Set();
+const DEBUG = false;
 let wasDownloading = false;
 let isPopupOpen = false;
 let animationInterval = null;
@@ -36,6 +37,12 @@ const STATE_OVERLAY_CONFIGS = {
 };
 const stateOverlayIconCache = {};
 const sessionDownloadIdsLoadedPromise = loadSessionDownloadIds();
+
+function debugLog(...args) {
+  if (DEBUG) {
+    console.log(...args.map(arg => (typeof arg === 'function' ? arg() : arg)));
+  }
+}
 
 // Theo dõi trạng thái đóng/mở của cửa sổ popup bằng cơ chế Port Connection
 chrome.runtime.onConnect.addListener((port) => {
@@ -165,7 +172,7 @@ function handleDelta(id, delta) {
     item.paused = delta.paused.current;
   }
 
-  console.log(`[handleDelta] ID: ${id}, State: ${item.state}, Bytes: ${item.bytesReceived}/${item.totalBytes}, Critical: ${isCritical}`);
+  debugLog(`[handleDelta] ID: ${id}, State: ${item.state}, Bytes: ${item.bytesReceived}/${item.totalBytes}, Critical: ${isCritical}`);
 
   // Handle completion or failure
   if (item.state === 'complete' || item.state === 'interrupted') {
@@ -191,7 +198,7 @@ function handleDelta(id, delta) {
  * của chrome.downloads.search, nhằm triệt tiêu lỗi hiển thị của nhiều tệp cùng lúc.*
  ********************************************************************************/
 function updateBadgeAndAnimation() {
-  console.log("[updateBadgeAndAnimation] Toàn bộ activeDownloads:", JSON.stringify(activeDownloads));
+  debugLog("[updateBadgeAndAnimation] Toàn bộ activeDownloads:", () => JSON.stringify(activeDownloads));
 
   const pausedItems = Object.values(activeDownloads).filter(item =>
     item &&
@@ -204,7 +211,7 @@ function updateBadgeAndAnimation() {
     item.state === 'in_progress' && !item.paused
   );
   
-  console.log("[updateBadgeAndAnimation] Danh sách activeItems (đang tải & không paused):", JSON.stringify(activeItems));
+  debugLog("[updateBadgeAndAnimation] Danh sách activeItems (đang tải & không paused):", () => JSON.stringify(activeItems));
   
   // Loại bỏ các tệp tin chưa bắt đầu nhận dữ liệu (bytesReceived === 0) 
   // để tránh các tệp bị nghẽn/chờ xác nhận kéo tụt chỉ số phần trăm của tệp đang chạy.
@@ -214,9 +221,9 @@ function updateBadgeAndAnimation() {
   }
 
   if (activeItems.length === 0) {
-    console.log("[updateBadgeAndAnimation] Không có tệp nào đang tải (activeItems rỗng).");
+    debugLog("[updateBadgeAndAnimation] Không có tệp nào đang tải (activeItems rỗng).");
     if (pausedItems.length > 0) {
-      console.log("[updateBadgeAndAnimation] Tất cả lượt tải đang bị tạm dừng.");
+      debugLog("[updateBadgeAndAnimation] Tất cả lượt tải đang bị tạm dừng.");
       wasDownloading = true;
       isCompleteState = false;
       chrome.action.setBadgeText({ text: '' });
@@ -277,11 +284,11 @@ function updateBadgeAndAnimation() {
   chrome.action.setBadgeBackgroundColor({ color: '#0078d4' });
 
   if (indeterminate || totalBytes === 0) {
-    console.log("[updateBadgeAndAnimation] Đang tải ở chế độ không xác định (indeterminate).");
+    debugLog("[updateBadgeAndAnimation] Đang tải ở chế độ không xác định (indeterminate).");
     chrome.action.setBadgeText({ text: '...' });
   } else {
     const percent = Math.floor((bytesReceived / totalBytes) * 100);
-    console.log(`[updateBadgeAndAnimation] Đang tải: ${percent}% (Tổng: ${bytesReceived}/${totalBytes})`);
+    debugLog(`[updateBadgeAndAnimation] Đang tải: ${percent}% (Tổng: ${bytesReceived}/${totalBytes})`);
     chrome.action.setBadgeText({ text: `${percent}%` });
   }
 }
@@ -317,7 +324,7 @@ async function ensureOffscreenDocumentInternal() {
       reasons: ['LOCAL_STORAGE'],
       justification: 'Keep service worker alive and poll download progress'
     });
-    console.log("[background.js] Đã tạo thành công Offscreen Document.");
+    debugLog("[background.js] Đã tạo thành công Offscreen Document.");
     chrome.runtime.sendMessage({ action: 'start-polling' }).catch(() => {});
   } catch (err) {
     if (err && err.message && err.message.includes('Only a single offscreen document may be created')) {
@@ -337,7 +344,7 @@ async function closeOffscreenDocument() {
     if (contexts.length > 0) {
       try {
         await chrome.offscreen.closeDocument();
-        console.log("[background.js] Đã đóng Offscreen Document.");
+        debugLog("[background.js] Đã đóng Offscreen Document.");
       } catch (err) {
         console.error("[background.js] Lỗi khi đóng Offscreen Document:", err);
       }

@@ -4,6 +4,15 @@ Tài liệu này ghi lại toàn bộ lịch sử các phiên bản phát hành 
 
 ---
 
+### [v1.2.32] - 2026-06-08
+
+#### - **[Cập nhật]**
+- Bọc các log gỡ lỗi trong `EdgeDownloadsPopup` sau cờ `DEBUG = false`:
+  - Giữ lại khả năng bật log khi cần điều tra lỗi bằng cách đổi cờ `DEBUG`.
+  - Tránh `JSON.stringify(activeDownloads)` và các log tiến trình chạy trong bản release mặc định.
+  - Giữ nguyên `console.warn` và `console.error` cho lỗi thật.
+- Đồng bộ nâng phiên bản của cả hai tiện ích mở rộng lên `1.2.32` tại các tệp `manifest.json`.
+
 ### [v1.2.31] - 2026-06-08
 
 #### - **[Sửa lỗi]**
