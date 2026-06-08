@@ -4,6 +4,17 @@ Tài liệu này ghi lại toàn bộ lịch sử các phiên bản phát hành 
 
 ---
 
+### [v1.2.31] - 2026-06-08
+
+#### - **[Sửa lỗi]**
+- Khắc phục lỗi danh sách tệp tải xuống trong phiên hiện tại đôi khi bị mất trong `EdgeDownloadsPopup`:
+  - Lưu `sessionDownloadIds` vào `chrome.storage.session` để dữ liệu sống qua các lần Manifest V3 Service Worker ngủ rồi nạp lại.
+  - Khi Popup gửi `get-session-downloads`, Service Worker đợi tải xong dữ liệu phiên trước khi phản hồi, tránh trả về mảng rỗng giả.
+
+#### - **[Cập nhật]**
+- Bổ sung quyền `"storage"` cho `EdgeDownloadsPopup` để dùng `chrome.storage.session`.
+- Đồng bộ nâng phiên bản của cả hai tiện ích mở rộng lên `1.2.31` tại các tệp `manifest.json`.
+
 ### [v1.2.30] - 2026-06-08
 
 #### - **[Cập nhật]**

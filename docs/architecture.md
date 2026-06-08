@@ -75,7 +75,7 @@ Hệ thống chia làm hai thành phần lớn tương ứng với hai tiện í
    - Trình điều khiển logic (`popup.js`): Giao tiếp với API trình duyệt (`chrome.history` và `chrome.sessions`) để lấy lịch sử và khôi phục tab/cửa sổ đã đóng gần đây.
 2. **Thành phần Tải xuống (Downloads Component)**:
    - Giao diện người dùng (`popup.html`, `popup.css`, `popup.js`): Hiển thị danh sách tải xuống, hỗ trợ chế độ thu gọn phiên hiện tại kết hợp nút "See more" để mở rộng, mở tệp, hiển thị vị trí, tiếp tục/tải lại lượt tải bị gián đoạn và xóa lịch sử tải xuống. Popup nhận message batch `sync-all-progress` từ Service Worker qua `chrome.runtime.onMessage` để cập nhật DOM tại chỗ theo mô hình event-driven, đồng thời chỉ vẽ lại danh sách khi có thay đổi trạng thái quan trọng.
-   - Service Worker (`background.js`): Chạy ngầm để quản lý vòng đời tải xuống, tắt UI mặc định của Chrome khi Service Worker nạp bằng `chrome.downloads.setUiOptions`, đổi icon toolbar theo trạng thái tải xuống (mặc định, glow, pause overlay, hoàn tất overlay), và điều phối đóng/mở tài liệu offscreen. Đồng thời gom dữ liệu tiến trình trong `activeDownloads` thành message batch gửi về Popup tối đa mỗi 3 giây.
+   - Service Worker (`background.js`): Chạy ngầm để quản lý vòng đời tải xuống, tắt UI mặc định của Chrome khi Service Worker nạp bằng `chrome.downloads.setUiOptions`, đổi icon toolbar theo trạng thái tải xuống (mặc định, glow, pause overlay, hoàn tất overlay), điều phối đóng/mở tài liệu offscreen và lưu danh sách ID tải xuống của phiên hiện tại bằng `chrome.storage.session`. Đồng thời gom dữ liệu tiến trình trong `activeDownloads` thành message batch gửi về Popup tối đa mỗi 3 giây.
    - Tài liệu ẩn (`offscreen.html`, `offscreen.js`): Môi trường DOM ẩn phát tick `'polling-tick'` định kỳ 3 giây để Service Worker đọc nhẹ `bytesReceived` và `totalBytes` bằng `chrome.downloads.search({ state: 'in_progress' })`, vì `chrome.downloads.onChanged` không cung cấp nhịp thay đổi byte liên tục.
 
 ---
@@ -92,7 +92,7 @@ Hệ thống chia làm hai thành phần lớn tương ứng với hai tiện í
 ### Luồng 2: Theo dõi và cập nhật tiến trình tải xuống
 1. Người dùng bắt đầu tải xuống một tệp tin.
 2. Trình duyệt kích hoạt sự kiện `chrome.downloads.onCreated`.
-3. Background Service Worker đã thiết lập vô hiệu hóa bong bóng tải gốc ở giai đoạn khởi động bằng `setUiOptions`. Khi nhận sự kiện tải mới, Service Worker lưu ID tệp tải vào danh sách phiên làm việc hiện tại (`sessionDownloadIds`) và chỉ gọi `chrome.action.openPopup()` nếu đây là lượt tải mới sau giai đoạn khởi động. Các lượt tải cũ do Chrome khôi phục khi vừa mở trình duyệt sẽ không tự bật popup. Sau đó Service Worker khởi động hoạt ảnh nhấp nháy phát sáng (glow icon) và gọi `ensureOffscreenDocument()` để kích hoạt tài liệu ẩn Offscreen.
+3. Background Service Worker đã thiết lập vô hiệu hóa bong bóng tải gốc ở giai đoạn khởi động bằng `setUiOptions`. Khi nhận sự kiện tải mới, Service Worker lưu ID tệp tải vào danh sách phiên làm việc hiện tại (`sessionDownloadIds`) và đồng bộ danh sách này vào `chrome.storage.session` để không bị mất khi Service Worker ngủ rồi nạp lại. Service Worker chỉ gọi `chrome.action.openPopup()` nếu đây là lượt tải mới sau giai đoạn khởi động. Các lượt tải cũ do Chrome khôi phục khi vừa mở trình duyệt sẽ không tự bật popup. Sau đó Service Worker khởi động hoạt ảnh nhấp nháy phát sáng (glow icon) và gọi `ensureOffscreenDocument()` để kích hoạt tài liệu ẩn Offscreen.
 4. Tài liệu Offscreen hoạt động và gửi tin nhắn `'polling-tick'` định kỳ mỗi 3 giây để đánh thức Service Worker và kích hoạt một lượt đọc nhẹ `chrome.downloads.search({ state: 'in_progress' })`.
 5. Service Worker nhận sự kiện trạng thái qua `chrome.downloads.onChanged` để cập nhật các trường quan trọng như `state`, `filename`, `paused` và `error`. Với mỗi tick polling, Service Worker chỉ so sánh hai trường `bytesReceived` và `totalBytes`; nếu byte thật sự thay đổi thì mới cập nhật Badge và gửi message batch `sync-all-progress` về Popup.
 6. Khi popup đang mở, `popup.js` lắng nghe `sync-all-progress` và cập nhật trực tiếp nhãn phần trăm, dung lượng, thanh tiến trình và trạng thái Pause/Resume của từng dòng tương ứng. Khi popup gửi tín hiệu dọn badge hoàn tất, Service Worker chỉ xóa badge nếu không còn tệp `in_progress`; nếu vẫn đang tải, badge phần trăm được vẽ lại ngay từ `activeDownloads`. Nếu toàn bộ lượt tải đang tạm dừng, Service Worker dùng `OffscreenCanvas` để vẽ icon tải xuống gốc kèm icon pause nhỏ màu trắng ở góc dưới bên phải. Trình lắng nghe `onChanged` trong popup được lọc để chỉ gọi `loadDownloads()` (vẽ lại DOM) khi có thay đổi trạng thái quan trọng.
@@ -100,7 +100,7 @@ Hệ thống chia làm hai thành phần lớn tương ứng với hai tiện í
 8. Với lượt tải thất bại (`interrupted`), Popup hiển thị lý do lỗi từ `item.error`. Nếu Chrome cho phép tiếp tục (`canResume`), người dùng có thể bấm `Resume` để gọi `chrome.downloads.resume()`. Nếu không thể resume nhưng còn URL gốc (`url` hoặc `finalUrl`), Popup hiển thị `Retry` và gọi `chrome.downloads.download()` để tạo lượt tải mới.
 
 ### Luồng 3: Thu gọn và mở rộng danh sách tải xuống (See more)
-1. Khi người dùng click biểu tượng Downloads, Popup gửi tin nhắn lấy danh sách ID của phiên (`get-session-downloads`) từ Service Worker.
+1. Khi người dùng click biểu tượng Downloads, Popup gửi tin nhắn lấy danh sách ID của phiên (`get-session-downloads`) từ Service Worker. Nếu Service Worker vừa được Chrome đánh thức lại, nó tải danh sách ID đã lưu trong `chrome.storage.session` trước khi phản hồi.
 2. Nếu danh sách ID phiên trống (vừa mở trình duyệt, chưa tải gì), Popup hiển thị toàn bộ lịch sử tải xuống dạng danh sách dài (State A).
 3. Nếu danh sách ID phiên có dữ liệu (đã hoặc đang tải tệp trong phiên này), Popup tự động thu gọn chỉ hiển thị các tệp đang tải và các tệp trong phiên đó, đồng thời hiển thị nút "See more" ở chân trang (State B).
 4. Người dùng click nút "See more": Popup đổi trạng thái (`forceShowAll = true`), hiển thị toàn bộ danh sách lịch sử tải xuống và ẩn nút "See more" đi.
@@ -129,6 +129,7 @@ Hệ thống sử dụng các API gốc của trình duyệt Chrome:
 - `chrome.downloads.erase`: Xóa tệp tin khỏi lịch sử tải xuống.
 - `chrome.downloads.showDefaultFolder`: Mở thư mục tải xuống mặc định của hệ điều hành.
 - `chrome.downloads.setUiOptions`: Cấu hình tắt/bật bong bóng tải xuống mặc định của trình duyệt trên Chrome/Chromium hiện đại.
+- `chrome.storage.session`: Lưu tạm danh sách ID tải xuống trong phiên hiện tại để dữ liệu thu gọn không mất khi Manifest V3 Service Worker bị ngủ và nạp lại.
 - `chrome.action.setIcon`: Thay đổi biểu tượng (icon) trên thanh công cụ động.
 - `chrome.action.setBadgeText`: Cập nhật văn bản chỉ số badge (phần trăm).
 - `chrome.action.openPopup`: Tự động mở cửa sổ trình đơn của tiện ích mở rộng khi người dùng bắt đầu lượt tải mới, có bộ lọc tránh bật popup cho download cũ được Chrome khôi phục lúc khởi động.

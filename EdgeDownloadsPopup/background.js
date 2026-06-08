@@ -13,6 +13,7 @@ const PROGRESS_BATCH_INTERVAL_MS = 3000;
 let hasCompletedStartupDownloadScan = false;
 let progressBatchTimer = null;
 let lastTerminalDownloadState = null;
+const SESSION_DOWNLOAD_IDS_KEY = 'sessionDownloadIds';
 const DEFAULT_ICON_PATHS = {
   "16": "icon16.png",
   "32": "icon32.png",
@@ -34,6 +35,7 @@ const STATE_OVERLAY_CONFIGS = {
   }
 };
 const stateOverlayIconCache = {};
+const sessionDownloadIdsLoadedPromise = loadSessionDownloadIds();
 
 // Theo dõi trạng thái đóng/mở của cửa sổ popup bằng cơ chế Port Connection
 chrome.runtime.onConnect.addListener((port) => {
@@ -52,7 +54,7 @@ disableNativeDownloadUi('service-worker-load');
 
 // Listen for new downloads
 chrome.downloads.onCreated.addListener((item) => {
-  sessionDownloadIds.add(item.id);
+  rememberSessionDownloadId(item.id);
   activeDownloads[item.id] = {
     id: item.id,
     filename: getBasename(item.filename),
@@ -107,7 +109,7 @@ function disableNativeDownloadUi(source) {
 
 // Listen for changes in downloads
 chrome.downloads.onChanged.addListener((delta) => {
-  sessionDownloadIds.add(delta.id);
+  rememberSessionDownloadId(delta.id);
   const id = delta.id;
   if (!activeDownloads[id]) {
     // If we missed onCreated, fetch the complete item
@@ -525,7 +527,10 @@ function handleProgressPollingTick() {
 // Listen for messages from extension views
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'get-session-downloads') {
-    sendResponse({ sessionDownloadIds: Array.from(sessionDownloadIds) });
+    sessionDownloadIdsLoadedPromise.then(() => {
+      sendResponse({ sessionDownloadIds: Array.from(sessionDownloadIds) });
+    });
+    return true;
   } else if (request.action === 'clear-complete-badge') {
     const hasActiveDownloads = Object.values(activeDownloads).some(item =>
       item &&
@@ -566,7 +571,7 @@ chrome.downloads.search({ state: 'in_progress' }, (items) => {
         paused: item.paused || false,
         error: item.error || null
       };
-      sessionDownloadIds.add(item.id);
+      rememberSessionDownloadId(item.id);
     });
   }
   updateBadgeAndAnimation();
@@ -575,3 +580,75 @@ chrome.downloads.search({ state: 'in_progress' }, (items) => {
   }
   hasCompletedStartupDownloadScan = true;
 });
+
+function rememberSessionDownloadId(id) {
+  if (id === undefined || id === null || sessionDownloadIds.has(id)) {
+    return;
+  }
+
+  sessionDownloadIds.add(id);
+  sessionDownloadIdsLoadedPromise.then(() => {
+    persistSessionDownloadIds();
+  });
+}
+
+async function loadSessionDownloadIds() {
+  try {
+    const result = await storageSessionGet(SESSION_DOWNLOAD_IDS_KEY);
+    const storedIds = result[SESSION_DOWNLOAD_IDS_KEY];
+    if (Array.isArray(storedIds)) {
+      storedIds.forEach(id => {
+        if (Number.isInteger(id)) {
+          sessionDownloadIds.add(id);
+        }
+      });
+    }
+  } catch (err) {
+    console.warn("[background.js] Không thể tải danh sách download trong phiên:", err.message);
+  }
+}
+
+function persistSessionDownloadIds() {
+  storageSessionSet({
+    [SESSION_DOWNLOAD_IDS_KEY]: Array.from(sessionDownloadIds)
+  }).catch((err) => {
+    console.warn("[background.js] Không thể lưu danh sách download trong phiên:", err.message);
+  });
+}
+
+function storageSessionGet(key) {
+  return new Promise((resolve) => {
+    if (!chrome.storage || !chrome.storage.session) {
+      resolve({});
+      return;
+    }
+
+    chrome.storage.session.get(key, (result) => {
+      if (chrome.runtime.lastError) {
+        console.warn("[background.js] Lỗi đọc chrome.storage.session:", chrome.runtime.lastError.message);
+        resolve({});
+        return;
+      }
+
+      resolve(result || {});
+    });
+  });
+}
+
+function storageSessionSet(value) {
+  return new Promise((resolve, reject) => {
+    if (!chrome.storage || !chrome.storage.session) {
+      resolve();
+      return;
+    }
+
+    chrome.storage.session.set(value, () => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message));
+        return;
+      }
+
+      resolve();
+    });
+  });
+}
