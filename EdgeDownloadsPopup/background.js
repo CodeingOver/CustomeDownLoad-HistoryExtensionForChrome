@@ -90,34 +90,18 @@ function shouldAutoOpenPopupForCreatedDownload(item) {
 
 function disableNativeDownloadUi(source) {
   try {
-    if (chrome.downloads.setUiOptions) {
-      const result = chrome.downloads.setUiOptions({ enabled: false });
-      if (result && typeof result.catch === 'function') {
-        result.catch((err) => {
-          console.warn(`[background.js] Không thể tắt Download UI bằng setUiOptions (${source}):`, err.message);
-          disableLegacyDownloadShelf(source);
-        });
-      }
+    if (!chrome.downloads.setUiOptions) {
       return;
     }
 
-    disableLegacyDownloadShelf(source);
+    const result = chrome.downloads.setUiOptions({ enabled: false });
+    if (result && typeof result.catch === 'function') {
+      result.catch((err) => {
+        console.warn(`[background.js] Không thể tắt Download UI bằng setUiOptions (${source}):`, err.message);
+      });
+    }
   } catch (err) {
     console.warn(`[background.js] Không thể tắt Download UI mặc định (${source}):`, err.message);
-    disableLegacyDownloadShelf(source);
-  }
-}
-
-function disableLegacyDownloadShelf(source) {
-  if (!chrome.downloads.setShelfEnabled) {
-    return;
-  }
-
-  try {
-    chrome.downloads.setShelfEnabled(false);
-    console.log(`[background.js] Đã tắt Download Shelf mặc định (${source}).`);
-  } catch (err) {
-    console.warn(`[background.js] Không thể tắt Download Shelf mặc định (${source}):`, err.message);
   }
 }
 
@@ -568,15 +552,6 @@ function getBasename(path) {
   const parts = path.split(/[/\\]/);
   return parts[parts.length - 1];
 }
-
-// Đăng ký các sự kiện lifecycle của extension để ẩn download UI mặc định càng sớm càng tốt
-chrome.runtime.onInstalled.addListener(() => {
-  disableNativeDownloadUi('runtime-installed');
-});
-
-chrome.runtime.onStartup.addListener(() => {
-  disableNativeDownloadUi('runtime-startup');
-});
 
 // Khởi tạo activeDownloads từ các lượt tải đang chạy trong trình duyệt khi Service Worker khởi động
 chrome.downloads.search({ state: 'in_progress' }, (items) => {

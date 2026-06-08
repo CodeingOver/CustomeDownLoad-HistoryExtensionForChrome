@@ -4,6 +4,15 @@ Tài liệu này ghi lại toàn bộ lịch sử các phiên bản phát hành 
 
 ---
 
+### [v1.2.30] - 2026-06-08
+
+#### - **[Cập nhật]**
+- Rút gọn cơ chế ẩn giao diện tải xuống mặc định trong `EdgeDownloadsPopup`:
+  - Chỉ dùng API hiện đại `chrome.downloads.setUiOptions({ enabled: false })` khi Service Worker nạp.
+  - Gỡ fallback Chromium cũ `chrome.downloads.setShelfEnabled(false)` và quyền `"downloads.shelf"` khỏi `manifest.json`.
+  - Loại bỏ các lần gọi trùng trong `runtime.onInstalled` và `runtime.onStartup`, giảm thao tác hệ thống không cần thiết.
+- Đồng bộ nâng phiên bản của cả hai tiện ích mở rộng lên `1.2.30` tại các tệp `manifest.json`.
+
 ### [v1.2.29] - 2026-06-08
 
 #### - **[Sửa lỗi]**
