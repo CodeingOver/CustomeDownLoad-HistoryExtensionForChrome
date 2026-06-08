@@ -4,6 +4,15 @@ Tài liệu này ghi lại toàn bộ lịch sử các phiên bản phát hành 
 
 ---
 
+### [v1.2.28] - 2026-06-08
+
+#### - **[Sửa lỗi]**
+- Khắc phục lỗi hiển thị AM/PM bị đảo ngược trong popup `EdgeHistoryPopup`.
+
+#### - **[Cập nhật]**
+- Đồng bộ tài liệu `README.md` và `docs/architecture.md` với giao diện History hiện tại, loại bỏ mô tả cũ về tab thiết bị khác đã không còn trong UI.
+- Đồng bộ nâng phiên bản của cả hai tiện ích mở rộng lên `1.2.28` tại các tệp `manifest.json`.
+
 ### [v1.2.27] - 2026-06-08
 
 #### - **[Sửa lỗi]**

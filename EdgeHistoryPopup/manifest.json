@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "incognito": "split",
   "name": "Edge History",
-  "version": "1.2.27",
+  "version": "1.2.28",
   "description": "Popup xem lịch sử thiết kế Fluent phong cách Edge",
   "permissions": [
     "history",

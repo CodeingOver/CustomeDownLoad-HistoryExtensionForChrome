@@ -7,7 +7,7 @@ Dự án này là bộ đôi tiện ích mở rộng (Chrome Extensions) đượ
   - Giao diện tối Fluent Design với hiệu ứng kính mờ (glassmorphism) và bo góc mượt mà.
   - Phân nhóm lịch sử duyệt web theo ngày và khoảng thời gian (Recent, Today, Yesterday...).
   - Tích hợp thanh tìm kiếm lịch sử với hiệu ứng focus Fluent và nút xóa nhanh nội dung tìm kiếm.
-  - Quản lý các tab gần đây (Recently closed) và đồng bộ tab từ thiết bị khác (Tabs from other devices).
+  - Quản lý các tab gần đây (Recently closed) để khôi phục nhanh phiên làm việc vừa đóng.
   - Thao tác nhanh: Nhấp để mở tab mới, di chuột qua để xóa nhanh URL khỏi lịch sử hoặc sao chép liên kết.
 - **EdgeDownloadsPopup**:
   - Quản lý danh sách tải xuống gần đây đồng bộ thiết kế với menu lịch sử.

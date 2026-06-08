@@ -72,7 +72,7 @@ Hệ thống chia làm hai thành phần lớn tương ứng với hai tiện í
 
 1. **Thành phần Lịch sử (History Component)**:
    - Giao diện người dùng (`popup.html` & `popup.css`): Hiển thị cấu trúc tab và danh sách kết quả.
-   - Trình điều khiển logic (`popup.js`): Giao tiếp với API trình duyệt (`chrome.history` và `chrome.sessions`) để lấy lịch sử, khôi phục tab đã đóng, và tương tác với các thiết bị được đồng bộ.
+   - Trình điều khiển logic (`popup.js`): Giao tiếp với API trình duyệt (`chrome.history` và `chrome.sessions`) để lấy lịch sử và khôi phục tab/cửa sổ đã đóng gần đây.
 2. **Thành phần Tải xuống (Downloads Component)**:
    - Giao diện người dùng (`popup.html`, `popup.css`, `popup.js`): Hiển thị danh sách tải xuống, hỗ trợ chế độ thu gọn phiên hiện tại kết hợp nút "See more" để mở rộng, mở tệp, hiển thị vị trí, tiếp tục/tải lại lượt tải bị gián đoạn và xóa lịch sử tải xuống. Popup nhận message batch `sync-all-progress` từ Service Worker qua `chrome.runtime.onMessage` để cập nhật DOM tại chỗ theo mô hình event-driven, đồng thời chỉ vẽ lại danh sách khi có thay đổi trạng thái quan trọng.
    - Service Worker (`background.js`): Chạy ngầm để quản lý vòng đời tải xuống, tắt UI mặc định của Chrome tại các điểm khởi động bằng `chrome.downloads.setUiOptions` kèm fallback `chrome.downloads.setShelfEnabled` cho Chromium cũ, đổi icon toolbar theo trạng thái tải xuống (mặc định, glow, pause overlay, hoàn tất overlay), và điều phối đóng/mở tài liệu offscreen. Đồng thời gom dữ liệu tiến trình trong `activeDownloads` thành message batch gửi về Popup tối đa mỗi 3 giây.
@@ -120,7 +120,6 @@ Hệ thống sử dụng các API gốc của trình duyệt Chrome:
 - `chrome.history.deleteUrl`: Xóa một URL khỏi lịch sử của trình duyệt.
 - `chrome.sessions.getRecentlyClosed`: Lấy danh sách các tab/cửa sổ đã đóng gần đây.
 - `chrome.sessions.restore`: Khôi phục một phiên làm việc đã đóng.
-- `chrome.sessions.getDevices`: Lấy danh sách tab đang mở trên các thiết bị khác đang đồng bộ tài khoản Chrome.
 - `chrome.downloads.search`: Lấy danh sách lịch sử tải xuống cho popup; trong Service Worker, API này được dùng khi khởi động, khi cần backfill một download bị lỡ sự kiện và trong tick polling 3 giây để đọc riêng `bytesReceived`/`totalBytes` cho tiến trình Badge.
 - `chrome.downloads.getFileIcon`: Lấy biểu tượng thực tế của tệp tin từ hệ thống dựa trên phần mở rộng hoặc đường dẫn tệp.
 - `chrome.downloads.open`: Mở tệp tin đã tải xuống hoàn thành.
@@ -146,18 +145,15 @@ graph TD
     A[Người dùng click Icon Lịch sử] --> B{Tab nào đang kích hoạt?}
     B -->|All| C[Gọi chrome.history.search]
     B -->|Recently Closed| D[Gọi chrome.sessions.getRecentlyClosed]
-    B -->|Devices| E[Gọi chrome.sessions.getDevices]
     
     C --> F[Nhận mảng Lịch sử từ Chrome]
     D --> G[Nhận mảng Phiên từ Chrome]
-    E --> H[Nhận mảng Thiết bị từ Chrome]
     
     F --> I[Nhóm dữ liệu theo ngày]
     I --> J[Tải Favicon qua Chrome API]
     J --> K[Hiển thị danh sách lên Pop-up]
     
     G --> K
-    H --> K
 ```
 
 ### Sơ đồ 2: Trình tự cập nhật tiến trình tải xuống thời gian thực (Sequence Diagram)
