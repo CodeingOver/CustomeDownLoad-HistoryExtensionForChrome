@@ -4,6 +4,16 @@ Tài liệu này ghi lại toàn bộ lịch sử các phiên bản phát hành 
 
 ---
 
+### [v1.2.29] - 2026-06-08
+
+#### - **[Sửa lỗi]**
+- Khắc phục lỗi log `Only a single offscreen document may be created` trong `EdgeDownloadsPopup`:
+  - Dùng chung một promise tạo Offscreen Document cho các lần gọi `ensureOffscreenDocument()` xảy ra gần như đồng thời.
+  - Xử lý trường hợp Chrome báo offscreen document đã tồn tại như trạng thái hợp lệ và chỉ gửi lại tín hiệu `start-polling`.
+
+#### - **[Cập nhật]**
+- Đồng bộ nâng phiên bản của cả hai tiện ích mở rộng lên `1.2.29` tại các tệp `manifest.json`.
+
 ### [v1.2.28] - 2026-06-08
 
 #### - **[Sửa lỗi]**

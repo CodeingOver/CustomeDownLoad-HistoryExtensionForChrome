@@ -300,11 +300,21 @@ function updateBadgeAndAnimation() {
   }
 }
 
-let isCreatingOffscreen = false;
+let offscreenCreationPromise = null;
 
 async function ensureOffscreenDocument() {
-  if (isCreatingOffscreen) return;
-  
+  if (offscreenCreationPromise) {
+    return offscreenCreationPromise;
+  }
+
+  offscreenCreationPromise = ensureOffscreenDocumentInternal().finally(() => {
+    offscreenCreationPromise = null;
+  });
+
+  return offscreenCreationPromise;
+}
+
+async function ensureOffscreenDocumentInternal() {
   if (chrome.runtime.getContexts) {
     const contexts = await chrome.runtime.getContexts({
       contextTypes: ['OFFSCREEN_DOCUMENT']
@@ -315,7 +325,6 @@ async function ensureOffscreenDocument() {
     }
   }
   
-  isCreatingOffscreen = true;
   try {
     await chrome.offscreen.createDocument({
       url: 'offscreen.html',
@@ -325,9 +334,12 @@ async function ensureOffscreenDocument() {
     console.log("[background.js] Đã tạo thành công Offscreen Document.");
     chrome.runtime.sendMessage({ action: 'start-polling' }).catch(() => {});
   } catch (err) {
+    if (err && err.message && err.message.includes('Only a single offscreen document may be created')) {
+      chrome.runtime.sendMessage({ action: 'start-polling' }).catch(() => {});
+      return;
+    }
+
     console.error("[background.js] Lỗi khi tạo Offscreen Document:", err);
-  } finally {
-    isCreatingOffscreen = false;
   }
 }
 
