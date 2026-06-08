@@ -23,16 +23,17 @@ const GLOW_ICON_PATHS = {
   "32": "icon_glow32.png",
   "48": "icon_glow48.png"
 };
-const PAUSE_ICON_PATHS = {
-  "16": "pause_icon16.png",
-  "32": "pause_icon32.png",
-  "48": "pause_icon48.png"
+const STATE_OVERLAY_CONFIGS = {
+  pause: {
+    backgroundColor: '#6b6b6b',
+    overlayPrefix: 'pause_icon'
+  },
+  complete: {
+    backgroundColor: '#10c15c',
+    overlayPrefix: 'complete_icon'
+  }
 };
-const COMPLETE_ICON_PATHS = {
-  "16": "complete_icon16.png",
-  "32": "complete_icon32.png",
-  "48": "complete_icon48.png"
-};
+const stateOverlayIconCache = {};
 
 // Theo dõi trạng thái đóng/mở của cửa sổ popup bằng cơ chế Port Connection
 chrome.runtime.onConnect.addListener((port) => {
@@ -233,7 +234,8 @@ function updateBadgeAndAnimation() {
       wasDownloading = true;
       isCompleteState = false;
       chrome.action.setBadgeText({ text: '' });
-      stopAnimation();
+      // Chỉ dừng nhấp nháy glow, không set icon mặc định để tránh ghi đè overlay pause bất đồng bộ.
+      clearProgressAnimation();
       showPausedIcon();
       closeOffscreenDocument();
       return;
@@ -349,12 +351,73 @@ async function closeOffscreenDocument() {
 function showCompletionBadge() {
   isCompleteState = true;
   chrome.action.setBadgeText({ text: '' }); // Xóa badge text tiến trình cũ
-  setActionIcon(COMPLETE_ICON_PATHS);
+  drawStateOverlayIcon('complete');
 }
 
 // Hiển thị icon pause khi toàn bộ lượt tải đang tạm dừng
 function showPausedIcon() {
-  setActionIcon(PAUSE_ICON_PATHS);
+  chrome.action.setBadgeText({ text: '' });
+  drawStateOverlayIcon('pause');
+}
+
+async function drawStateOverlayIcon(state) {
+  const config = STATE_OVERLAY_CONFIGS[state];
+  if (!config) return;
+
+  try {
+    if (stateOverlayIconCache[state]) {
+      await chrome.action.setIcon({ imageData: stateOverlayIconCache[state] });
+      return;
+    }
+
+    const imageDatas = {};
+    for (const size of [16, 32, 48]) {
+      const [baseBitmap, overlayBitmap] = await Promise.all([
+        loadBitmap(`icon${size}.png`),
+        loadBitmap(`${config.overlayPrefix}${size}.png`)
+      ]);
+
+      const canvas = new OffscreenCanvas(size, size);
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(baseBitmap, 0, 0, size, size);
+
+      const radius = size * 0.27;
+      const cx = size - radius - 1;
+      const cy = size - radius - 1;
+      const overlaySize = Math.ceil(radius * 1.25);
+      const overlayX = cx - overlaySize / 2;
+      const overlayY = cy - overlaySize / 2;
+
+      ctx.fillStyle = config.backgroundColor;
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.fill();
+
+      const overlayCanvas = new OffscreenCanvas(overlaySize, overlaySize);
+      const overlayCtx = overlayCanvas.getContext('2d');
+      overlayCtx.drawImage(overlayBitmap, 0, 0, overlaySize, overlaySize);
+      overlayCtx.globalCompositeOperation = 'source-in';
+      overlayCtx.fillStyle = '#ffffff';
+      overlayCtx.fillRect(0, 0, overlaySize, overlaySize);
+      ctx.drawImage(overlayCanvas, overlayX, overlayY);
+
+      baseBitmap.close();
+      overlayBitmap.close();
+      imageDatas[size] = ctx.getImageData(0, 0, size, size);
+    }
+
+    stateOverlayIconCache[state] = imageDatas;
+    await chrome.action.setIcon({ imageData: imageDatas });
+  } catch (err) {
+    console.warn(`[background.js] Không thể vẽ icon overlay ${state}:`, err.message);
+    setActionIcon(DEFAULT_ICON_PATHS);
+  }
+}
+
+async function loadBitmap(path) {
+  const response = await fetch(chrome.runtime.getURL(path));
+  const blob = await response.blob();
+  return createImageBitmap(blob);
 }
 
 // Khởi chạy hoạt ảnh biểu tượng nhấp nháy phát sáng (Glow)

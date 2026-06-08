@@ -4,6 +4,28 @@ Tài liệu này ghi lại toàn bộ lịch sử các phiên bản phát hành 
 
 ---
 
+### [v1.2.27] - 2026-06-08
+
+#### - **[Sửa lỗi]**
+- Khắc phục lỗi icon pause overlay trên toolbar bị mất sau khi tạm dừng tải xuống:
+  - Dừng riêng interval nhấp nháy bằng `clearProgressAnimation()` trong nhánh pause thay vì gọi `stopAnimation()`.
+  - Tránh thao tác khôi phục icon mặc định chạy bất đồng bộ và ghi đè icon pause nhỏ ở góc dưới bên phải.
+
+#### - **[Cập nhật]**
+- Đồng bộ nâng phiên bản của cả hai tiện ích mở rộng lên `1.2.27` tại các tệp `manifest.json`.
+
+### [v1.2.26] - 2026-06-08
+
+#### - **[Sửa lỗi]**
+- Sửa cách hiển thị icon trạng thái tạm dừng và hoàn tất trên toolbar của `EdgeDownloadsPopup`:
+  - Không còn thay toàn bộ icon tải xuống bằng icon pause hoặc checkbox.
+  - Vẽ lại icon tải xuống gốc trước, sau đó phủ icon trạng thái nhỏ ở góc dưới bên phải bằng `OffscreenCanvas`.
+  - Tint icon pause/checkbox thành màu trắng trên nền tròn tương phản để tránh bị tối màu trên toolbar.
+
+#### - **[Cập nhật]**
+- Cập nhật `background.js` để cache `ImageData` của từng icon overlay, tránh vẽ lại Canvas lặp lại cho cùng một trạng thái.
+- Đồng bộ nâng phiên bản của cả hai tiện ích mở rộng lên `1.2.26` tại các tệp `manifest.json`.
+
 ### [v1.2.25] - 2026-06-07
 
 #### - **[Thêm mới]**
