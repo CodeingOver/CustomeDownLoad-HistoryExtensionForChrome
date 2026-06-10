@@ -412,12 +412,7 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   function getFaviconUrl(url) {
-    try {
-      const parsedUrl = new URL(url);
-      return `chrome-extension://${chrome.runtime.id}/_favicon/?pageUrl=${encodeURIComponent(parsedUrl.origin)}&size=32`;
-    } catch (e) {
-      return `chrome-extension://${chrome.runtime.id}/_favicon/?pageUrl=${encodeURIComponent(url)}&size=32`;
-    }
+    return `chrome-extension://${chrome.runtime.id}/_favicon/?pageUrl=${encodeURIComponent(url)}&size=16`;
   }
 
   function formatTime(timestamp) {

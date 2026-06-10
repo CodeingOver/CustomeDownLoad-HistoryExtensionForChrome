@@ -15,6 +15,8 @@ let hasCompletedStartupDownloadScan = false;
 let progressBatchTimer = null;
 let lastTerminalDownloadState = null;
 const SESSION_DOWNLOAD_IDS_KEY = 'sessionDownloadIds';
+const SESSION_DOWNLOAD_STATE_KEY = 'downloadSessionState';
+let downloadSessionId = null;
 const DEFAULT_ICON_PATHS = {
   "16": "icon16.png",
   "32": "icon32.png",
@@ -59,9 +61,17 @@ chrome.action.setBadgeBackgroundColor({ color: '#0078d4' });
 
 disableNativeDownloadUi('service-worker-load');
 
+chrome.runtime.onStartup.addListener(() => {
+  resetDownloadSession();
+});
+
 // Listen for new downloads
 chrome.downloads.onCreated.addListener((item) => {
-  rememberSessionDownloadId(item.id);
+  const shouldAutoOpenPopup = shouldAutoOpenPopupForCreatedDownload(item);
+  if (item.state === 'in_progress' || shouldAutoOpenPopup) {
+    rememberSessionDownloadId(item.id);
+  }
+
   activeDownloads[item.id] = {
     id: item.id,
     filename: getBasename(item.filename),
@@ -74,7 +84,7 @@ chrome.downloads.onCreated.addListener((item) => {
   lastTerminalDownloadState = null;
   
   // Chỉ tự động hiển thị popup cho lượt tải mới, không mở khi Chrome khôi phục download cũ lúc startup.
-  if (shouldAutoOpenPopupForCreatedDownload(item)) {
+  if (shouldAutoOpenPopup) {
     chrome.action.openPopup().catch((err) => {
       console.warn("Could not open popup automatically:", err);
     });
@@ -116,7 +126,6 @@ function disableNativeDownloadUi(source) {
 
 // Listen for changes in downloads
 chrome.downloads.onChanged.addListener((delta) => {
-  rememberSessionDownloadId(delta.id);
   const id = delta.id;
   if (!activeDownloads[id]) {
     // If we missed onCreated, fetch the complete item
@@ -601,26 +610,50 @@ function rememberSessionDownloadId(id) {
 
 async function loadSessionDownloadIds() {
   try {
-    const result = await storageSessionGet(SESSION_DOWNLOAD_IDS_KEY);
-    const storedIds = result[SESSION_DOWNLOAD_IDS_KEY];
-    if (Array.isArray(storedIds)) {
-      storedIds.forEach(id => {
+    const result = await storageSessionGet(SESSION_DOWNLOAD_STATE_KEY);
+    const storedState = result[SESSION_DOWNLOAD_STATE_KEY];
+    if (storedState && typeof storedState.sessionId === 'string' && Array.isArray(storedState.ids)) {
+      downloadSessionId = storedState.sessionId;
+      storedState.ids.forEach(id => {
         if (Number.isInteger(id)) {
           sessionDownloadIds.add(id);
         }
       });
+      return;
     }
+
+    downloadSessionId = createDownloadSessionId();
+    persistSessionDownloadIds();
   } catch (err) {
     console.warn("[background.js] Không thể tải danh sách download trong phiên:", err.message);
+    downloadSessionId = createDownloadSessionId();
   }
 }
 
 function persistSessionDownloadIds() {
+  if (!downloadSessionId) {
+    downloadSessionId = createDownloadSessionId();
+  }
+
   storageSessionSet({
-    [SESSION_DOWNLOAD_IDS_KEY]: Array.from(sessionDownloadIds)
+    [SESSION_DOWNLOAD_IDS_KEY]: [],
+    [SESSION_DOWNLOAD_STATE_KEY]: {
+      sessionId: downloadSessionId,
+      ids: Array.from(sessionDownloadIds)
+    }
   }).catch((err) => {
     console.warn("[background.js] Không thể lưu danh sách download trong phiên:", err.message);
   });
+}
+
+function resetDownloadSession() {
+  sessionDownloadIds.clear();
+  downloadSessionId = createDownloadSessionId();
+  persistSessionDownloadIds();
+}
+
+function createDownloadSessionId() {
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
 function storageSessionGet(key) {

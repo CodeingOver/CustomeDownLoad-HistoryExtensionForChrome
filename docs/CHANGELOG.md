@@ -4,6 +4,20 @@ Tài liệu này ghi lại toàn bộ lịch sử các phiên bản phát hành 
 
 ---
 
+### [v1.2.33] - 2026-06-10
+
+#### - **[Sửa lỗi]**
+- Sửa cách lấy favicon trong `EdgeHistoryPopup`:
+  - Dùng URL đầy đủ của từng mục lịch sử cho endpoint `_favicon` thay vì rút gọn về domain gốc.
+  - Chuyển kích thước favicon về `16px` để khớp gần hơn với danh sách `chrome://history/`.
+- Sửa điều kiện hiển thị nút `See more` trong `EdgeDownloadsPopup`:
+  - Không còn bật chế độ thu gọn chỉ vì có ID phiên cũ hoặc sự kiện `downloads.onChanged` từ lượt tải không thuộc phiên hiện tại.
+  - Popup đối chiếu ID phiên với danh sách tải xuống thực tế và bỏ qua mục `Removed` trước khi hiện nút `See more`.
+
+#### - **[Cập nhật]**
+- Lưu trạng thái phiên tải xuống bằng payload có mã phiên trong `chrome.storage.session`, giúp giữ dữ liệu khi Service Worker ngủ/thức nhưng tránh kéo nhầm dữ liệu cũ sau khi mở Chrome lại.
+- Đồng bộ nâng phiên bản của cả hai tiện ích mở rộng lên `1.2.33` tại các tệp `manifest.json`.
+
 ### [v1.2.32] - 2026-06-08
 
 #### - **[Cập nhật]**

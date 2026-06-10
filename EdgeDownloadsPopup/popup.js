@@ -173,18 +173,22 @@ document.addEventListener('DOMContentLoaded', function () {
         
         // Lọc bỏ các tệp tin chưa có tên (ví dụ tệp crdownload khi bắt đầu tải)
         let validItems = items.filter(item => item.filename);
+        const sessionIdSet = new Set(sessionIds);
 
         // Chế độ hiển thị thu gọn hoạt động khi:
-        // - Có ít nhất một tệp tải xuống trong phiên làm việc này
+        // - Có tệp đang tải hoặc tệp hợp lệ thuộc phiên làm việc này
         // - Người dùng chưa bấm nút "See more" để xem toàn bộ lịch sử (forceShowAll là false)
-        const isCollapsedView = sessionIds.length > 0 && !forceShowAll;
+        const hasSessionItems = validItems.some(item => isCurrentSessionItem(item, sessionIdSet));
+        const hasActiveItems = validItems.some(item => item.state === 'in_progress');
+        const isCollapsedView = (hasSessionItems || hasActiveItems) && !forceShowAll;
 
         if (isCollapsedView) {
           // Chỉ giữ lại các tệp đang tải hoặc được tải trong phiên này
-          validItems = validItems.filter(item => 
-            item.state === 'in_progress' || sessionIds.includes(item.id)
+          const collapsedItems = validItems.filter(item =>
+            item.state === 'in_progress' || isCurrentSessionItem(item, sessionIdSet)
           );
-          footerContainer.classList.remove('hidden');
+          footerContainer.classList.toggle('hidden', collapsedItems.length >= validItems.length);
+          validItems = collapsedItems;
         } else {
           footerContainer.classList.add('hidden');
         }
@@ -207,6 +211,14 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+  function isCurrentSessionItem(item, sessionIdSet) {
+    return sessionIdSet.has(item.id) && !isRemovedDownload(item);
+  }
+
+  function isRemovedDownload(item) {
+    return !item.exists && item.state === 'complete';
+  }
+
   // Row Renderer
   function createDownloadRow(item) {
     const li = rowTemplate.content.firstElementChild.cloneNode(true);
@@ -217,7 +229,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const ext = filename.split('.').pop().toLowerCase();
 
     // Check if the file is removed from disk
-    const isRemoved = !item.exists && item.state === 'complete';
+    const isRemoved = isRemovedDownload(item);
 
     const iconDiv = li.querySelector('[data-role="file-icon"]');
     iconDiv.innerHTML = getFileIconSVG(ext, isRemoved);
