@@ -151,7 +151,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (isLoading || !hasMore) return;
     isLoading = true;
 
-    const searchOptions = { text: queryText, maxResults: PAGE_SIZE };
+    const searchOptions = { text: queryText, maxResults: PAGE_SIZE, startTime: 0 };
     if (oldestTimestamp) {
       searchOptions.endTime = oldestTimestamp;
     }

@@ -4,6 +4,16 @@ Tài liệu này ghi lại toàn bộ lịch sử các phiên bản phát hành 
 
 ---
 
+### [v1.2.34] - 2026-06-20
+
+#### - **[Sửa lỗi]**
+- Khắc phục giới hạn truy vấn lịch sử trong `EdgeHistoryPopup`:
+  - Bổ sung tham số `startTime: 0` vào tùy chọn tìm kiếm `chrome.history.search`.
+  - Giúp loại bỏ giới hạn mặc định chỉ tìm kiếm trong vòng 24 giờ của API Chrome History, cho phép cuộn trang để tải thêm toàn bộ lịch sử duyệt web cũ hơn.
+
+#### - **[Cập nhật]**
+- Đồng bộ nâng phiên bản của cả hai tiện ích mở rộng lên `1.2.34` tại các tệp `manifest.json`.
+
 ### [v1.2.33] - 2026-06-10
 
 #### - **[Sửa lỗi]**
