@@ -2,6 +2,18 @@
 
 Tài liệu này ghi lại toàn bộ lịch sử các phiên bản phát hành và các cập nhật thay đổi của dự án.
 
+### [v1.2.35] - 2026-07-08
+
+#### - **[Sửa lỗi]**
+- Khắc phục triệt để lỗi tự động mở popup `EdgeDownloadsPopup` mỗi khi khởi động trình duyệt Chrome:
+  - Sử dụng cơ chế lưu trữ phiên `chrome.storage.session` để xác định trạng thái khởi động trình duyệt thực tế (`isBrowserStartup`), phân biệt với việc đánh thức Service Worker từ trạng thái ngủ.
+  - Thiết lập bộ đệm thời gian 10 giây trong giai đoạn khởi động trình duyệt mới để bỏ qua toàn bộ sự kiện `chrome.downloads.onCreated` do trình duyệt khôi phục/đồng bộ.
+  - Lọc bỏ ngay các sự kiện `onCreated` của tệp tải có trạng thái khác `'in_progress'`.
+  - Chuyển trình lắng nghe sự kiện `chrome.downloads.onCreated` sang bất đồng bộ để đồng bộ hóa hoàn hảo với trạng thái khởi động của phiên.
+
+#### - **[Cập nhật]**
+- Đồng bộ nâng phiên bản của cả hai tiện ích mở rộng lên `1.2.35` tại các tệp `manifest.json`.
+
 ---
 
 ### [v1.2.34] - 2026-06-20

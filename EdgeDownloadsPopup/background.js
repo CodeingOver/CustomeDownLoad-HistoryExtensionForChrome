@@ -14,6 +14,7 @@ const PROGRESS_BATCH_INTERVAL_MS = 3000;
 let hasCompletedStartupDownloadScan = false;
 let progressBatchTimer = null;
 let lastTerminalDownloadState = null;
+let isBrowserStartup = false;
 const SESSION_DOWNLOAD_IDS_KEY = 'sessionDownloadIds';
 const SESSION_DOWNLOAD_STATE_KEY = 'downloadSessionState';
 let downloadSessionId = null;
@@ -66,7 +67,9 @@ chrome.runtime.onStartup.addListener(() => {
 });
 
 // Listen for new downloads
-chrome.downloads.onCreated.addListener((item) => {
+chrome.downloads.onCreated.addListener(async (item) => {
+  await sessionDownloadIdsLoadedPromise;
+
   const shouldAutoOpenPopup = shouldAutoOpenPopupForCreatedDownload(item);
   if (item.state === 'in_progress' || shouldAutoOpenPopup) {
     rememberSessionDownloadId(item.id);
@@ -95,6 +98,16 @@ chrome.downloads.onCreated.addListener((item) => {
 });
 
 function shouldAutoOpenPopupForCreatedDownload(item) {
+  // Không tự động mở nếu trạng thái hiện tại đã hoàn tất hoặc thất bại
+  if (item.state && item.state !== 'in_progress') {
+    return false;
+  }
+
+  // Không tự động mở nếu đang trong giai đoạn khởi động trình duyệt
+  if (isBrowserStartup) {
+    return false;
+  }
+
   const startedAt = item.startTime ? Date.parse(item.startTime) : NaN;
   if (!Number.isNaN(startedAt) && startedAt < serviceWorkerStartedAt - RESTORED_DOWNLOAD_SKEW_MS) {
     return false;
@@ -619,8 +632,15 @@ async function loadSessionDownloadIds() {
           sessionDownloadIds.add(id);
         }
       });
+      isBrowserStartup = false;
       return;
     }
+
+    // Không tìm thấy trạng thái cũ: đây là phiên khởi động trình duyệt mới
+    isBrowserStartup = true;
+    setTimeout(() => {
+      isBrowserStartup = false;
+    }, 10000); // 10 giây grace period cho khởi động hệ thống
 
     downloadSessionId = createDownloadSessionId();
     persistSessionDownloadIds();
