@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <!-- Header -->
+  <div class="header">
+    <span class="title">Downloads</span>
+    <div class="header-actions">
+      <!-- Open downloads folder icon -->
+      <button class="action-btn" id="btn-open-folder" title="Open downloads folder">
+        <svg viewBox="0 0 16 16" width="16" height="16">
+          <path fill="currentColor" d="M1.5 3A1.5 1.5 0 0 1 3 1.5h3.84a1.5 1.5 0 0 1 1.06.44l1.32 1.32c.1.1.23.15.37.15H13A1.5 1.5 0 0 1 14.5 5v7.5A1.5 1.5 0 0 1 13 14H3a1.5 1.5 0 0 1-1.5-1.5V3zM3 2.5a.5.5 0 0 0-.5.5v9a.5.5 0 0 0 .5.5h10a.5.5 0 0 0 .5-.5V5a.5.5 0 0 0-.5-.5H9.13a1.5 1.5 0 0 1-1.06-.44L6.75 2.74A.5.5 0 0 0 6.4 2.6H3v-.1z"/>
+        </svg>
+      </button>
+      <!-- Search icon to toggle search bar -->
+      <button class="action-btn" id="btn-toggle-search" title="Search downloads">
+        <svg viewBox="0 0 16 16" width="16" height="16">
+          <path fill="currentColor" d="M11.74 10.68a5 5 0 1 0-1.06 1.06l3.52 3.52a.75.75 0 1 0 1.06-1.06l-3.52-3.52zM11 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0z"/>
+        </svg>
+      </button>
+      <!-- More options icon -->
+      <button class="action-btn" id="btn-more-options" title="More options">
+        <svg viewBox="0 0 16 16" width="16" height="16">
+          <circle fill="currentColor" cx="3" cy="8" r="1.5"/>
+          <circle fill="currentColor" cx="8" cy="8" r="1.5"/>
+          <circle fill="currentColor" cx="13" cy="8" r="1.5"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- More Options Dropdown Menu (Hidden by default) -->
+  <div class="dropdown-menu hidden" id="more-dropdown">
+    <div class="dropdown-item" id="menu-open-page">Open downloads page</div>
+    <div class="dropdown-item" id="menu-clear-all">Clear all download list</div>
+  </div>
+
+  <!-- Search Area (Toggled hidden/visible) -->
+  <div class="search-container hidden" id="search-container">
+    <svg class="search-icon" viewBox="0 0 16 16" width="14" height="14">
+      <path fill="currentColor" d="M11.74 10.68a5 5 0 1 0-1.06 1.06l3.52 3.52a.75.75 0 1 0 1.06-1.06l-3.52-3.52zM11 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0z"/>
+    </svg>
+    <input type="text" id="search-input" placeholder="Search downloads" autocomplete="off">
+    <button class="clear-search hidden" id="clear-search-btn">
+      <svg viewBox="0 0 16 16" width="10" height="10">
+        <path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" d="M3 3l10 10M13 3L3 10M3 3l10 10m0-10L3 13"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Downloads Items List -->
+  <div class="list-wrapper">
+    <ul class="downloads-list" id="downloads-list">
+      <!-- Generated via JS -->
+    </ul>
+    
+    <!-- Empty State -->
+    <div class="empty-state hidden" id="empty-state">
+      <div class="empty-icon">
+        <svg viewBox="0 0 24 24" width="48" height="48">
+          <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+        </svg>
+      </div>
+      <div class="empty-text">No downloads found</div>
+    </div>
+  </div>
+
+  <!-- Footer containing See more button -->
+  <div class="footer hidden" id="footer-container">
+    <button class="see-more-btn" id="btn-see-more">See more</button>
+  </div>
+
+  <template id="download-row-template">
+    <li class="download-item">
+      <div class="file-icon" data-role="file-icon"></div>
+      <div class="item-content">
+        <span class="file-name" data-role="file-name"></span>
+        <span class="status-label hidden" data-role="status-label"></span>
+        <span class="open-link hidden" data-action="open">Open file</span>
+        <div class="progress-container hidden" data-role="progress-container">
+          <div class="progress-bar-bg">
+            <div class="progress-bar-fill" data-role="progress-fill"></div>
+          </div>
+        </div>
+        <div class="download-actions-inline hidden" data-role="inline-actions">
+          <span class="action-link" data-action="toggle-pause"></span>
+          <span class="action-link" data-action="cancel">Cancel</span>
+        </div>
+        <div class="download-actions-inline hidden" data-role="failed-actions">
+          <span class="action-link hidden" data-action="resume-failed">Resume</span>
+          <span class="action-link hidden" data-action="retry">Retry</span>
+        </div>
+      </div>
+      <div class="item-controls">
+        <button class="control-btn hidden" data-action="show-folder" title="Show in folder">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+            <path d="M2.5 4.5A1.5 1.5 0 0 1 4 3h3.5a1.5 1.5 0 0 1 1 .4l1.2 1.2a1.5 1.5 0 0 0 1 .4H16a1.5 1.5 0 0 1 1.5 1.5v7A1.5 1.5 0 0 1 16 15H4a1.5 1.5 0 0 1-1.5-1.5v-9z"/>
+          </svg>
+        </button>
+        <button class="control-btn btn-delete" data-action="delete">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+            <path d="M3 5h14M7 5V3.5A1.5 1.5 0 0 1 8.5 2h3A1.5 1.5 0 0 1 13 3.5V5m2.5 0v10.5a1.5 1.5 0 0 1-1.5 1.5H6a1.5 1.5 0 0 1-1.5-1.5V5h11z"/>
+          </svg>
+        </button>
+      </div>
+    </li>
+  </template>
+
+  <script src="popup.js"></script>
+</body>
+</html>

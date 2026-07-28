@@ -1,0 +1,335 @@
+/* Fluent Design Dark Mode Stylesheet matching Microsoft Edge */
+
+:root {
+  --bg-primary: #1f1f1f;
+  --bg-input: #1b1b1b;
+  --bg-hover: #2b2b2b;
+  --border-color: #424242;
+  --border-focus: #60cdff;
+  --text-primary: #ffffff;
+  --text-secondary: #a0a0a0;
+  --text-dimmed: #8a8a8a;
+  --accent-color: #60cdff;
+}
+
+body {
+  width: 380px;
+  max-height: 550px;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* Scrollbar Customization */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #424242;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555555;
+}
+
+/* Header */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px 8px 16px;
+}
+
+.header .title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.header-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.action-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 4px;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  transition: background 0.1s, color 0.1s;
+}
+
+.action-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.action-btn:active {
+  background: #3c3c3c;
+}
+
+/* More Options Dropdown */
+.dropdown-menu {
+  position: absolute;
+  right: 16px;
+  top: 44px;
+  background-color: #2c2c2c;
+  border: 1px solid #3c3c3c;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  z-index: 1000;
+  min-width: 160px;
+}
+
+.dropdown-item {
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.dropdown-item:hover {
+  background-color: var(--bg-hover);
+}
+
+/* Search Area */
+.search-container {
+  margin: 4px 16px 8px 16px;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  position: absolute;
+  left: 10px;
+  color: var(--text-dimmed);
+  pointer-events: none;
+}
+
+#search-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 30px 6px 30px;
+  background-color: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
+  transition: border-color 0.1s, box-shadow 0.1s;
+}
+
+#search-input:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 1px var(--border-focus);
+}
+
+.clear-search {
+  position: absolute;
+  right: 8px;
+  background: transparent;
+  border: none;
+  color: var(--text-dimmed);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 4px;
+  border-radius: 2px;
+}
+
+.clear-search:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* Tabs */
+.tabs-container {
+  margin: 0 16px;
+  position: relative;
+}
+
+.tabs {
+  display: flex;
+  gap: 16px;
+  border-bottom: 1px solid #2d2d2d;
+}
+
+.tab {
+  padding: 8px 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color 0.1s;
+  position: relative;
+  margin-bottom: -1px;
+}
+
+.tab:hover {
+  color: var(--text-primary);
+}
+
+.tab.active {
+  color: var(--text-primary);
+  font-weight: 600;
+  border-bottom: 2px solid var(--text-primary);
+}
+
+/* List Area */
+.list-wrapper {
+  max-height: 430px;
+  overflow-y: auto;
+  position: relative;
+}
+
+.history-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* Group Header */
+.group-header {
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 14px 16px 6px 16px;
+  background-color: var(--bg-primary);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+/* History Item */
+.history-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  cursor: pointer;
+  position: relative;
+  transition: background 0.1s;
+}
+
+.history-item:hover {
+  background-color: var(--bg-hover);
+}
+
+.item-icon {
+  width: 16px;
+  height: 16px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.item-icon img {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+}
+
+.item-icon svg {
+  color: var(--text-secondary);
+}
+
+.item-title {
+  flex-grow: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #e0e0e0;
+  font-size: 13px;
+}
+
+.item-time {
+  color: var(--text-dimmed);
+  font-size: 11px;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+/* Delete Button on Hover */
+.item-delete {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: transparent;
+  color: var(--text-secondary);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  transition: color 0.1s, background-color 0.1s;
+}
+
+.item-delete:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+}
+
+.item-delete:active {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.item-delete svg {
+  width: 14px;
+  height: 14px;
+}
+
+.history-item:hover .item-time {
+  display: none;
+}
+
+.history-item:hover .item-delete {
+  display: inline-flex;
+}
+
+/* Empty State */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: var(--text-dimmed);
+}
+
+.empty-icon {
+  margin-bottom: 12px;
+  color: #424242;
+}
+
+.empty-text {
+  font-size: 13px;
+}
+
+.hidden {
+  display: none !important;
+}

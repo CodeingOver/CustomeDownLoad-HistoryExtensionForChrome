@@ -2,6 +2,58 @@
 
 Tài liệu này ghi lại toàn bộ lịch sử các phiên bản phát hành và các cập nhật thay đổi của dự án.
 
+### [v1.2.39] - 2026-07-28
+
+#### - **[Sửa lỗi]**
+- Đổi tên trường `"name"` trong `manifest.json` và ID trong `gecko` của cả hai tiện ích mở rộng để tuân thủ **Chính sách Thương hiệu (Trademark Policy)** của Mozilla:
+  - `Firefox Downloads` ➔ **`Fluent Downloads Popup`** (`fluent-downloads-popup@customextension.com`)
+  - `Firefox History` ➔ **`Fluent History Popup`** (`fluent-history-popup@customextension.com`)
+- Nguyên nhân: Mozilla nghiêm cấm đặt tên tiện ích chứa từ khóa thương hiệu "Firefox" hoặc "Mozilla" khi đăng tải lên hệ thống AMO.
+- Cập nhật và nén lại 2 tệp đóng gói `FirefoxDownloadsPopup.zip` và `FirefoxHistoryPopup.zip`.
+
+---
+
+### [v1.2.38] - 2026-07-28
+
+#### - **[Sửa lỗi]**
+- Khắc phục toàn bộ các lỗi (Errors) và cảnh báo (Warnings) từ Firefox AMO Linter:
+  - **Khai báo `data_collection_permissions`**: Bổ sung `browser_specific_settings.gecko.data_collection_permissions = { "required": ["none"] }` trong `manifest.json` cho cả 2 extension theo quy định mới từ Mozilla.
+  - **Bổ sung Extension ID**: Thêm `browser_specific_settings.gecko.id` cho cả `FirefoxDownloadsPopup` và `FirefoxHistoryPopup`.
+  - **Loại bỏ cảnh báo `Unsafe assignment to innerHTML`**: Thay thế tất cả thao tác gán `element.innerHTML` bằng helper `setSVGContent()` sử dụng `DOMParser` an toàn và `element.textContent = ''` để vượt qua kiểm tra bảo mật tĩnh của AMO.
+- Cập nhật lại 2 tệp đóng gói `FirefoxDownloadsPopup.zip` và `FirefoxHistoryPopup.zip`.
+
+---
+
+### [v1.2.37] - 2026-07-28
+
+#### - **[Cập nhật]**
+- Anh hóa (Anglicize) toàn bộ nội dung tiếng Việt trong cả hai extension Firefox:
+  - `FirefoxDownloadsPopup/manifest.json`, `background.js`, `popup.js`: Dịch tất cả comments, log message và description sang tiếng Anh.
+  - `FirefoxHistoryPopup/manifest.json`, `popup.js`: Dịch tất cả comments, user-facing alert text và description sang tiếng Anh (bao gồm alert Ctrl+H).
+- Nâng phiên bản cả 2 extension Firefox lên `1.2.37`.
+- Tạo file đóng gói `FirefoxDownloadsPopup.zip` (34.7 KB) và `FirefoxHistoryPopup.zip` (15.1 KB) sẵn sàng để submit lên addons.mozilla.org (AMO).
+
+---
+
+### [v1.2.36] - 2026-07-28
+
+#### - **[Thêm mới]**
+- Tạo mới thư mục `FirefoxDownloadsPopup/` — bản port Firefox của `EdgeDownloadsPopup`:
+  - `manifest.json`: Chuyển sang Manifest V2, dùng `browser_action` thay `action`, bỏ các permission không tương thích (`downloads.ui`, `offscreen`).
+  - `background.js`: Thay thế Service Worker + Offscreen Document bằng **Persistent Background Page** với `setInterval` trực tiếp để poll tiến trình tải xuống. Thay `chrome.storage.session` → `browser.storage.local` (prefix `ff_session_`). Xóa `disableNativeDownloadUi()` và `chrome.action.openPopup()` (không có trong Firefox). Dùng `browser.browserAction` thay `chrome.action`.
+  - `popup.js`: Bỏ `chrome.downloads.getFileIcon` (Firefox không hỗ trợ), thay bằng SVG fallback có màu theo loại file. Thay URL `chrome://downloads` → `about:downloads`.
+  - Sao chép toàn bộ `popup.html`, `popup.css`, và các file icon từ `EdgeDownloadsPopup`.
+- Tạo mới thư mục `FirefoxHistoryPopup/` — bản port Firefox của `EdgeHistoryPopup`:
+  - `manifest.json`: Chuyển sang Manifest V2, dùng `browser_action`, bỏ permission `favicon` (không hỗ trợ trong Firefox).
+  - `popup.js`: Thay `getFaviconUrl()` dùng **Google S2 Favicon API** (`https://www.google.com/s2/favicons?domain=...&sz=16`) thay cho `chrome-extension://.../favicon/` API. Thay URL `chrome://history/` → `alert()` hướng dẫn người dùng nhấn Ctrl+H. Thay `chrome://settings/clearBrowserData` → `about:preferences#privacy`.
+  - Sao chép toàn bộ `popup.html`, `popup.css`, và các file icon từ `EdgeHistoryPopup`.
+
+#### - **[Cập nhật]**
+- Tất cả file JavaScript trong bản Firefox dùng namespace `browser` (WebExtension API chuẩn của Firefox), có fallback về `chrome` để tương thích với Chrome polyfill nếu cần.
+- Phiên bản cả 2 extension Firefox được đặt là `1.2.36`.
+
+---
+
 ### [v1.2.35] - 2026-07-08
 
 #### - **[Sửa lỗi]**
