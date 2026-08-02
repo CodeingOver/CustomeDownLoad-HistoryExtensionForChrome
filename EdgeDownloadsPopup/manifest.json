@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "incognito": "split",
+  "incognito": "spanning",
   "name": "Edge Downloads",
-  "version": "1.2.35",
+  "version": "1.2.40",
   "description": "Popup quản lý lượt tải xuống thiết kế Fluent phong cách Edge",
   "permissions": [
     "downloads",

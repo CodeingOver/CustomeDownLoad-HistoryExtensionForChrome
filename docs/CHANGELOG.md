@@ -2,6 +2,15 @@
 
 Tài liệu này ghi lại toàn bộ lịch sử các phiên bản phát hành và các cập nhật thay đổi của dự án.
 
+### [v1.2.40] - 2026-08-02
+
+#### - **[Sửa lỗi]**
+- Khắc phục lỗi `Service worker registration failed. Status code: 10` trên Chrome/Edge (Manifest V3):
+  - Chuyển thuộc tính `"incognito": "split"` thành `"incognito": "spanning"` trong `manifest.json` của `EdgeDownloadsPopup` và `EdgeHistoryPopup`.
+  - Nguyên nhân: Chuẩn Manifest V3 của Chromium không hỗ trợ cơ chế tách biệt process background service worker theo chế độ `"split"` cho cửa sổ ẩn danh (Incognito), dẫn đến trình duyệt hủy đăng ký Service Worker và báo mã lỗi status code 10.
+
+---
+
 ### [v1.2.39] - 2026-07-28
 
 #### - **[Sửa lỗi]**
