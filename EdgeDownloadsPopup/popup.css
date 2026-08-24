@@ -238,6 +238,11 @@ body {
   color: var(--text-dimmed);
 }
 
+.status-label.removed-label {
+  color: #c25d5d;
+  font-weight: 400;
+}
+
 .open-link {
   font-size: 11px;
   color: var(--accent-color);

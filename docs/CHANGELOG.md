@@ -2,6 +2,25 @@
 
 Tài liệu này ghi lại toàn bộ lịch sử các phiên bản phát hành và các cập nhật thay đổi của dự án.
 
+### [v1.2.44] - 2026-08-24
+
+#### - **[Cập nhật]**
+- Tinh chỉnh màu sắc nhãn `Removed` sang tông đỏ trầm dịu mắt (`#c25d5d`):
+  - `popup.css`: Giảm độ rực và độ sáng của màu đỏ, chuyển sang màu đỏ gạch/hồng đất trầm (Muted Brick Red `#c25d5d`) với `font-weight: 400`, giúp phân biệt rõ tệp đã xóa mà không gây chói mắt hay tạo cảm giác báo động đỏ trên nền tối.
+- Nâng phiên bản `EdgeDownloadsPopup` lên `1.2.44`.
+
+---
+
+### [v1.2.43] - 2026-08-24
+
+#### - **[Cập nhật]**
+- Tinh chỉnh giao diện hiển thị tệp đã bị xóa khỏi đĩa cứng (`EdgeDownloadsPopup`):
+  - `popup.css`: Bổ sung lớp `.status-label.removed-label` với màu đỏ pastel sáng `#ff6b6b` và độ đậm `font-weight: 500`.
+  - `popup.js`: Gắn lớp `removed-label` cho nhãn trạng thái `Removed`, giúp tăng độ tương phản trên nền tối và người dùng dễ dàng nhận biết tệp đã xóa chỉ bằng một cái nhìn lướt qua.
+- Nâng phiên bản `EdgeDownloadsPopup` lên `1.2.43`.
+
+---
+
 ### [v1.2.42] - 2026-08-24
 
 #### - **[Thêm mới]**

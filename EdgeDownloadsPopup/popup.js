@@ -333,6 +333,7 @@ document.addEventListener('DOMContentLoaded', function () {
       if (isRemoved) {
         const statusLabel = li.querySelector('[data-role="status-label"]');
         statusLabel.classList.remove('hidden');
+        statusLabel.classList.add('removed-label');
         statusLabel.textContent = 'Removed';
       } else {
         li.querySelector('[data-action="open"]').classList.remove('hidden');
