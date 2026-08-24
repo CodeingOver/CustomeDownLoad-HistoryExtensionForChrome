@@ -2,6 +2,16 @@
 
 Tài liệu này ghi lại toàn bộ lịch sử các phiên bản phát hành và các cập nhật thay đổi của dự án.
 
+### [v1.2.45] - 2026-08-24
+
+#### - **[Cập nhật]**
+- Loại bỏ hiệu ứng hoạt ảnh (animation / fade out) khi xóa từng mục:
+  - `EdgeHistoryPopup/popup.js`: Xóa ngay lập tức dòng lịch sử khỏi DOM mà không cần chờ hiệu ứng trượt mờ 200ms (`deleteHistoryRow`).
+  - `EdgeDownloadsPopup/popup.js`: Loại bỏ hàm `fadeOutRow`, xóa ngay lập tức dòng tệp tải xuống khỏi DOM và danh sách bộ đệm khi bấm xóa (`eraseDownload`).
+- Nâng phiên bản `EdgeHistoryPopup` và `EdgeDownloadsPopup` lên `1.2.45`.
+
+---
+
 ### [v1.2.44] - 2026-08-24
 
 #### - **[Cập nhật]**

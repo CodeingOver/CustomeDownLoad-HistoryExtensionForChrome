@@ -447,24 +447,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
   function eraseDownload(item, row) {
     chrome.downloads.erase({ id: item.id }, () => {
-      fadeOutRow(row, () => {
-        downloadItems.delete(item.id);
-        renderedDownloadIds.delete(item.id);
-        if (list.children.length === 0) {
-          emptyState.classList.remove('hidden');
-        }
-      });
-    });
-  }
-
-  function fadeOutRow(row, afterRemove) {
-    row.style.opacity = '0';
-    row.style.transform = 'translateX(-10px)';
-    row.style.transition = 'opacity 0.2s, transform 0.2s';
-    setTimeout(() => {
       row.remove();
-      afterRemove();
-    }, 200);
+      downloadItems.delete(item.id);
+      renderedDownloadIds.delete(item.id);
+      if (list.children.length === 0) {
+        emptyState.classList.remove('hidden');
+      }
+    });
   }
 
   function updateDownloadProgress(item) {

@@ -379,17 +379,12 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!url) return;
 
     chrome.history.deleteUrl({ url: url }, () => {
-      row.style.opacity = '0';
-      row.style.transform = 'translateX(-10px)';
-      row.style.transition = 'opacity 0.2s, transform 0.2s';
-      setTimeout(() => {
-        const previous = row.previousElementSibling;
-        const next = row.nextElementSibling;
+      const previous = row.previousElementSibling;
+      const next = row.nextElementSibling;
 
-        row.remove();
-        renderedItems.delete(key);
-        cleanHeaderAround(previous, next);
-      }, 200);
+      row.remove();
+      renderedItems.delete(key);
+      cleanHeaderAround(previous, next);
     });
   }
 
