@@ -12,7 +12,6 @@ document.addEventListener('DOMContentLoaded', function () {
   const moreDropdown = document.getElementById('more-dropdown');
   const menuOpenPage = document.getElementById('menu-open-page');
   const menuClearAll = document.getElementById('menu-clear-all');
-  const btnPin = document.getElementById('btn-pin');
 
   let activeTabId = 'tab-all';
   let searchTimeout = null;
@@ -99,10 +98,6 @@ document.addEventListener('DOMContentLoaded', function () {
     if (confirm('Are you sure you want to clear all history list? (This will open settings to clear history)')) {
       chrome.tabs.create({ url: 'chrome://settings/clearBrowserData' });
     }
-  });
-
-  btnPin.addEventListener('click', () => {
-    alert('Pinning is simulated! Chrome Extension popups are always top-level dialogs.');
   });
 
   // Search input events

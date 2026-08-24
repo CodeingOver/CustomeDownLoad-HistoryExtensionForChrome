@@ -2,6 +2,16 @@
 
 Tài liệu này ghi lại toàn bộ lịch sử các phiên bản phát hành và các cập nhật thay đổi của dự án.
 
+### [v1.2.46] - 2026-08-24
+
+#### - **[Xóa bỏ]**
+- Loại bỏ nút ghim tiện ích (`Pin history` / `btn-pin`) trên thanh tiêu đề `EdgeHistoryPopup`:
+  - `popup.html`: Xóa bỏ thẻ `<button id="btn-pin">` khỏi thanh header.
+  - `popup.js`: Dọn dẹp biến và event listener giả lập ghim của `btnPin`.
+- Nâng phiên bản `EdgeHistoryPopup` lên `1.2.46`.
+
+---
+
 ### [v1.2.45] - 2026-08-24
 
 #### - **[Cập nhật]**
