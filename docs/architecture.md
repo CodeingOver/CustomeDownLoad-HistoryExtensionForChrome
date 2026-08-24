@@ -92,7 +92,7 @@ Hệ thống chia làm hai thành phần lớn tương ứng với hai tiện í
 ### Luồng 2: Theo dõi và cập nhật tiến trình tải xuống
 1. Người dùng bắt đầu tải xuống một tệp tin.
 2. Trình duyệt kích hoạt sự kiện `chrome.downloads.onCreated`.
-3. Background Service Worker đã thiết lập vô hiệu hóa bong bóng tải gốc ở giai đoạn khởi động bằng `setUiOptions`. Khi nhận sự kiện tải mới, Service Worker lưu ID tệp tải vào danh sách phiên làm việc hiện tại (`sessionDownloadIds`) và đồng bộ danh sách này vào `chrome.storage.session` kèm mã phiên để không bị mất khi Service Worker ngủ rồi nạp lại, nhưng không kéo nhầm ID cũ sau khi Chrome khởi động phiên mới. Service Worker chỉ gọi `chrome.action.openPopup()` nếu đây là lượt tải mới sau giai đoạn khởi động. Các lượt tải cũ do Chrome khôi phục khi vừa mở trình duyệt sẽ không tự bật popup. Sau đó Service Worker khởi động hoạt ảnh nhấp nháy phát sáng (glow icon) và gọi `ensureOffscreenDocument()` để kích hoạt tài liệu ẩn Offscreen.
+3. Background Service Worker đã thiết lập vô hiệu hóa bong bóng tải gốc ở giai đoạn khởi động bằng `setUiOptions`. Khi nhận sự kiện tải mới, Service Worker lưu ID tệp tải vào danh sách phiên làm việc hiện tại (`sessionDownloadIds`) và đồng bộ danh sách này vào `chrome.storage.session` kèm mã phiên để không bị mất khi Service Worker ngủ rồi nạp lại. Tiến trình tải được xử lý êm trong nền mà không tự động mở popup, tránh làm gián đoạn trải nghiệm người dùng. Sau đó Service Worker khởi động hoạt ảnh nhấp nháy phát sáng (glow icon) và gọi `ensureOffscreenDocument()` để kích hoạt tài liệu ẩn Offscreen.
 4. Tài liệu Offscreen hoạt động và gửi tin nhắn `'polling-tick'` định kỳ mỗi 3 giây để đánh thức Service Worker và kích hoạt một lượt đọc nhẹ `chrome.downloads.search({ state: 'in_progress' })`.
 5. Service Worker nhận sự kiện trạng thái qua `chrome.downloads.onChanged` để cập nhật các trường quan trọng như `state`, `filename`, `paused` và `error`. Với mỗi tick polling, Service Worker chỉ so sánh hai trường `bytesReceived` và `totalBytes`; nếu byte thật sự thay đổi thì mới cập nhật Badge và gửi message batch `sync-all-progress` về Popup.
 6. Khi popup đang mở, `popup.js` lắng nghe `sync-all-progress` và cập nhật trực tiếp nhãn phần trăm, dung lượng, thanh tiến trình và trạng thái Pause/Resume của từng dòng tương ứng. Khi popup gửi tín hiệu dọn badge hoàn tất, Service Worker chỉ xóa badge nếu không còn tệp `in_progress`; nếu vẫn đang tải, badge phần trăm được vẽ lại ngay từ `activeDownloads`. Nếu toàn bộ lượt tải đang tạm dừng, Service Worker dùng `OffscreenCanvas` để vẽ icon tải xuống gốc kèm icon pause nhỏ màu trắng ở góc dưới bên phải. Trình lắng nghe `onChanged` trong popup được lọc để chỉ gọi `loadDownloads()` (vẽ lại DOM) khi có thay đổi trạng thái quan trọng.
@@ -132,7 +132,6 @@ Hệ thống sử dụng các API gốc của trình duyệt Chrome:
 - `chrome.storage.session`: Lưu tạm danh sách ID tải xuống trong phiên hiện tại để dữ liệu thu gọn không mất khi Manifest V3 Service Worker bị ngủ và nạp lại.
 - `chrome.action.setIcon`: Thay đổi biểu tượng (icon) trên thanh công cụ động.
 - `chrome.action.setBadgeText`: Cập nhật văn bản chỉ số badge (phần trăm).
-- `chrome.action.openPopup`: Tự động mở cửa sổ trình đơn của tiện ích mở rộng khi người dùng bắt đầu lượt tải mới, có bộ lọc tránh bật popup cho download cũ được Chrome khôi phục lúc khởi động.
 - `chrome.runtime.onMessage.addListener`: Lắng nghe tin nhắn trao đổi dữ liệu giữa các thành phần, bao gồm phản hồi thông tin tệp tải trong phiên hiện tại (`sessionDownloadIds`), nhận dữ liệu tiến trình tải xuống event-driven và xử lý tín hiệu dọn badge hoàn tất mà không xóa nhầm badge phần trăm khi vẫn còn tệp đang tải.
 
 ---
@@ -169,12 +168,7 @@ sequenceDiagram
 
     User->>Chrome: Bắt đầu tải file
     Chrome->>SW: Kích hoạt sự kiện onCreated
-    alt Lượt tải mới sau khởi động
-        SW->>Chrome: Gọi chrome.action.openPopup()
-        Chrome->>Pop: Hiển thị giao diện Popup tự động
-    else Lượt tải cũ được khôi phục khi mở Chrome
-        SW->>Chrome: Bỏ qua openPopup()
-    end
+    SW->>SW: Lưu ID vào sessionDownloadIds & bật hoạt ảnh Glow
     SW->>Chrome: Khởi tạo Offscreen Document
     loop Định kỳ polling mỗi 3 giây
         Offscreen->>SW: Gửi tin nhắn polling-tick

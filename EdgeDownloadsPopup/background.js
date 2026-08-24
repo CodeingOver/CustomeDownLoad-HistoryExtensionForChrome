@@ -7,14 +7,9 @@ let animationInterval = null;
 let isGlowState = false;
 let isCompleteState = false;
 let progressInterval = null;
-const serviceWorkerStartedAt = Date.now();
-const STARTUP_AUTO_OPEN_GRACE_MS = 5000;
-const RESTORED_DOWNLOAD_SKEW_MS = 2000;
 const PROGRESS_BATCH_INTERVAL_MS = 3000;
-let hasCompletedStartupDownloadScan = false;
 let progressBatchTimer = null;
 let lastTerminalDownloadState = null;
-let isBrowserStartup = false;
 const SESSION_DOWNLOAD_IDS_KEY = 'sessionDownloadIds';
 const SESSION_DOWNLOAD_STATE_KEY = 'downloadSessionState';
 let downloadSessionId = null;
@@ -70,10 +65,7 @@ chrome.runtime.onStartup.addListener(() => {
 chrome.downloads.onCreated.addListener(async (item) => {
   await sessionDownloadIdsLoadedPromise;
 
-  const shouldAutoOpenPopup = shouldAutoOpenPopupForCreatedDownload(item);
-  if (item.state === 'in_progress' || shouldAutoOpenPopup) {
-    rememberSessionDownloadId(item.id);
-  }
+  rememberSessionDownloadId(item.id);
 
   activeDownloads[item.id] = {
     id: item.id,
@@ -85,40 +77,11 @@ chrome.downloads.onCreated.addListener(async (item) => {
     error: item.error || null
   };
   lastTerminalDownloadState = null;
-  
-  // Chỉ tự động hiển thị popup cho lượt tải mới, không mở khi Chrome khôi phục download cũ lúc startup.
-  if (shouldAutoOpenPopup) {
-    chrome.action.openPopup().catch((err) => {
-      console.warn("Could not open popup automatically:", err);
-    });
-  }
 
   updateBadgeAndAnimation();
   scheduleProgressBatch();
 });
 
-function shouldAutoOpenPopupForCreatedDownload(item) {
-  // Không tự động mở nếu trạng thái hiện tại đã hoàn tất hoặc thất bại
-  if (item.state && item.state !== 'in_progress') {
-    return false;
-  }
-
-  // Không tự động mở nếu đang trong giai đoạn khởi động trình duyệt
-  if (isBrowserStartup) {
-    return false;
-  }
-
-  const startedAt = item.startTime ? Date.parse(item.startTime) : NaN;
-  if (!Number.isNaN(startedAt) && startedAt < serviceWorkerStartedAt - RESTORED_DOWNLOAD_SKEW_MS) {
-    return false;
-  }
-
-  if (!hasCompletedStartupDownloadScan && Date.now() - serviceWorkerStartedAt < STARTUP_AUTO_OPEN_GRACE_MS) {
-    return false;
-  }
-
-  return true;
-}
 
 function disableNativeDownloadUi(source) {
   try {
@@ -607,7 +570,6 @@ chrome.downloads.search({ state: 'in_progress' }, (items) => {
   if (items && items.length > 0) {
     ensureOffscreenDocument();
   }
-  hasCompletedStartupDownloadScan = true;
 });
 
 function rememberSessionDownloadId(id) {
@@ -632,16 +594,10 @@ async function loadSessionDownloadIds() {
           sessionDownloadIds.add(id);
         }
       });
-      isBrowserStartup = false;
       return;
     }
 
     // Không tìm thấy trạng thái cũ: đây là phiên khởi động trình duyệt mới
-    isBrowserStartup = true;
-    setTimeout(() => {
-      isBrowserStartup = false;
-    }, 10000); // 10 giây grace period cho khởi động hệ thống
-
     downloadSessionId = createDownloadSessionId();
     persistSessionDownloadIds();
   } catch (err) {

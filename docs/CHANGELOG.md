@@ -2,6 +2,17 @@
 
 Tài liệu này ghi lại toàn bộ lịch sử các phiên bản phát hành và các cập nhật thay đổi của dự án.
 
+### [v1.2.41] - 2026-08-24
+
+#### - **[Cập nhật]**
+- Loại bỏ tính năng tự động mở cửa sổ popup khi bắt đầu tải xuống tệp tin:
+  - `EdgeDownloadsPopup/background.js`: Loại bỏ lệnh gọi `chrome.action.openPopup()` trong sự kiện `chrome.downloads.onCreated` để quá trình tải diễn ra ngầm trong nền mà không làm gián đoạn màn hình làm việc của người dùng.
+  - Lược bỏ hàm phụ trợ `shouldAutoOpenPopupForCreatedDownload()` và các cờ trạng thái khởi động trình duyệt (`isBrowserStartup`, `STARTUP_AUTO_OPEN_GRACE_MS`, `RESTORED_DOWNLOAD_SKEW_MS`, `hasCompletedStartupDownloadScan`).
+  - Đảm bảo các tiến trình cập nhật badge phần trăm, hoạt ảnh biểu tượng (glow/pause/complete) và lưu trữ danh sách tải trong phiên (`sessionDownloadIds`) vẫn hoạt động bình thường.
+- Nâng phiên bản `EdgeDownloadsPopup` lên `1.2.41`.
+
+---
+
 ### [v1.2.40] - 2026-08-02
 
 #### - **[Sửa lỗi]**
