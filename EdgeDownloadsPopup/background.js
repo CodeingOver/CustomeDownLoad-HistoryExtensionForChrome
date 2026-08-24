@@ -1,5 +1,4 @@
 let activeDownloads = {};
-let sessionDownloadIds = new Set();
 const DEBUG = false;
 let wasDownloading = false;
 let isPopupOpen = false;
@@ -10,9 +9,6 @@ let progressInterval = null;
 const PROGRESS_BATCH_INTERVAL_MS = 3000;
 let progressBatchTimer = null;
 let lastTerminalDownloadState = null;
-const SESSION_DOWNLOAD_IDS_KEY = 'sessionDownloadIds';
-const SESSION_DOWNLOAD_STATE_KEY = 'downloadSessionState';
-let downloadSessionId = null;
 const DEFAULT_ICON_PATHS = {
   "16": "icon16.png",
   "32": "icon32.png",
@@ -34,7 +30,6 @@ const STATE_OVERLAY_CONFIGS = {
   }
 };
 const stateOverlayIconCache = {};
-const sessionDownloadIdsLoadedPromise = loadSessionDownloadIds();
 
 function debugLog(...args) {
   if (DEBUG) {
@@ -57,16 +52,8 @@ chrome.action.setBadgeBackgroundColor({ color: '#0078d4' });
 
 disableNativeDownloadUi('service-worker-load');
 
-chrome.runtime.onStartup.addListener(() => {
-  resetDownloadSession();
-});
-
 // Listen for new downloads
-chrome.downloads.onCreated.addListener(async (item) => {
-  await sessionDownloadIdsLoadedPromise;
-
-  rememberSessionDownloadId(item.id);
-
+chrome.downloads.onCreated.addListener((item) => {
   activeDownloads[item.id] = {
     id: item.id,
     filename: getBasename(item.filename),
@@ -518,12 +505,7 @@ function handleProgressPollingTick() {
 
 // Listen for messages from extension views
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === 'get-session-downloads') {
-    sessionDownloadIdsLoadedPromise.then(() => {
-      sendResponse({ sessionDownloadIds: Array.from(sessionDownloadIds) });
-    });
-    return true;
-  } else if (request.action === 'clear-complete-badge') {
+  if (request.action === 'clear-complete-badge') {
     const hasActiveDownloads = Object.values(activeDownloads).some(item =>
       item &&
       item.state === 'in_progress'
@@ -563,7 +545,6 @@ chrome.downloads.search({ state: 'in_progress' }, (items) => {
         paused: item.paused || false,
         error: item.error || null
       };
-      rememberSessionDownloadId(item.id);
     });
   }
   updateBadgeAndAnimation();
@@ -571,100 +552,3 @@ chrome.downloads.search({ state: 'in_progress' }, (items) => {
     ensureOffscreenDocument();
   }
 });
-
-function rememberSessionDownloadId(id) {
-  if (id === undefined || id === null || sessionDownloadIds.has(id)) {
-    return;
-  }
-
-  sessionDownloadIds.add(id);
-  sessionDownloadIdsLoadedPromise.then(() => {
-    persistSessionDownloadIds();
-  });
-}
-
-async function loadSessionDownloadIds() {
-  try {
-    const result = await storageSessionGet(SESSION_DOWNLOAD_STATE_KEY);
-    const storedState = result[SESSION_DOWNLOAD_STATE_KEY];
-    if (storedState && typeof storedState.sessionId === 'string' && Array.isArray(storedState.ids)) {
-      downloadSessionId = storedState.sessionId;
-      storedState.ids.forEach(id => {
-        if (Number.isInteger(id)) {
-          sessionDownloadIds.add(id);
-        }
-      });
-      return;
-    }
-
-    // Không tìm thấy trạng thái cũ: đây là phiên khởi động trình duyệt mới
-    downloadSessionId = createDownloadSessionId();
-    persistSessionDownloadIds();
-  } catch (err) {
-    console.warn("[background.js] Không thể tải danh sách download trong phiên:", err.message);
-    downloadSessionId = createDownloadSessionId();
-  }
-}
-
-function persistSessionDownloadIds() {
-  if (!downloadSessionId) {
-    downloadSessionId = createDownloadSessionId();
-  }
-
-  storageSessionSet({
-    [SESSION_DOWNLOAD_IDS_KEY]: [],
-    [SESSION_DOWNLOAD_STATE_KEY]: {
-      sessionId: downloadSessionId,
-      ids: Array.from(sessionDownloadIds)
-    }
-  }).catch((err) => {
-    console.warn("[background.js] Không thể lưu danh sách download trong phiên:", err.message);
-  });
-}
-
-function resetDownloadSession() {
-  sessionDownloadIds.clear();
-  downloadSessionId = createDownloadSessionId();
-  persistSessionDownloadIds();
-}
-
-function createDownloadSessionId() {
-  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-
-function storageSessionGet(key) {
-  return new Promise((resolve) => {
-    if (!chrome.storage || !chrome.storage.session) {
-      resolve({});
-      return;
-    }
-
-    chrome.storage.session.get(key, (result) => {
-      if (chrome.runtime.lastError) {
-        console.warn("[background.js] Lỗi đọc chrome.storage.session:", chrome.runtime.lastError.message);
-        resolve({});
-        return;
-      }
-
-      resolve(result || {});
-    });
-  });
-}
-
-function storageSessionSet(value) {
-  return new Promise((resolve, reject) => {
-    if (!chrome.storage || !chrome.storage.session) {
-      resolve();
-      return;
-    }
-
-    chrome.storage.session.set(value, () => {
-      if (chrome.runtime.lastError) {
-        reject(new Error(chrome.runtime.lastError.message));
-        return;
-      }
-
-      resolve();
-    });
-  });
-}

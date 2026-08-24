@@ -26,6 +26,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // Initial load
   loadActiveTab();
+  searchInput.focus();
 
   // Tab switching
   tabs.forEach(tab => {

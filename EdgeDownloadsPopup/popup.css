@@ -352,36 +352,3 @@ body {
 .hidden {
   display: none !important;
 }
-
-/* Footer & See more button */
-.footer {
-  padding: 12px 16px;
-  border-top: 1px solid #282828;
-  background-color: var(--bg-primary);
-  display: flex;
-  justify-content: flex-start;
-  align-items: center;
-  flex-shrink: 0;
-}
-
-.see-more-btn {
-  background-color: #2b2b2b;
-  border: 1px solid #3c3c3c;
-  color: var(--text-primary);
-  padding: 6px 14px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  font-family: inherit;
-  transition: background-color 0.1s, border-color 0.1s;
-}
-
-.see-more-btn:hover {
-  background-color: #3c3c3c;
-  border-color: #4c4c4c;
-}
-
-.see-more-btn:active {
-  background-color: #202020;
-}

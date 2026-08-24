@@ -1,11 +1,11 @@
 document.addEventListener('DOMContentLoaded', function () {
   // Elements
   const list = document.getElementById('downloads-list');
+  const listWrapper = document.querySelector('.list-wrapper');
   const emptyState = document.getElementById('empty-state');
   const searchInput = document.getElementById('search-input');
   const searchContainer = document.getElementById('search-container');
   const clearSearchBtn = document.getElementById('clear-search-btn');
-  const footerContainer = document.getElementById('footer-container');
   const rowTemplate = document.getElementById('download-row-template');
   
   const btnOpenFolder = document.getElementById('btn-open-folder');
@@ -14,13 +14,16 @@ document.addEventListener('DOMContentLoaded', function () {
   const moreDropdown = document.getElementById('more-dropdown');
   const menuOpenPage = document.getElementById('menu-open-page');
   const menuClearAll = document.getElementById('menu-clear-all');
-  const btnSeeMore = document.getElementById('btn-see-more');
 
   let searchTimeout = null;
-  let forceShowAll = false;
-  let loadRequestId = 0;
+  let oldestStartTime = null;
+  let isLoading = false;
+  let hasMore = true;
+  let activeRequestId = 0;
+  const PAGE_SIZE = 50;
   const iconCache = new Map(); // Bộ đệm lưu trữ icon của tệp để tránh gọi API getFileIcon liên tục
   const downloadItems = new Map();
+  const renderedDownloadIds = new Set(); // Bộ đệm in-memory kiểm tra trùng lặp cực nhanh
 
   // Kết nối tới background để báo hiệu popup đang mở
   chrome.runtime.connect({ name: 'popup' });
@@ -31,9 +34,18 @@ document.addEventListener('DOMContentLoaded', function () {
   // Initial load
   loadDownloads();
 
-  btnSeeMore.addEventListener('click', () => {
-    forceShowAll = true;
-    loadDownloads();
+  // Scroll to load more downloads với cơ chế throttling requestAnimationFrame để tránh giật lag
+  let scrollScheduled = false;
+  listWrapper.addEventListener('scroll', () => {
+    if (scrollScheduled) return;
+    scrollScheduled = true;
+    requestAnimationFrame(() => {
+      scrollScheduled = false;
+      const threshold = 30;
+      if (listWrapper.scrollTop + listWrapper.clientHeight >= listWrapper.scrollHeight - threshold) {
+        fetchDownloads(searchInput.value, true, activeRequestId);
+      }
+    });
   });
 
   // Real-time downloads monitoring
@@ -45,7 +57,20 @@ document.addEventListener('DOMContentLoaded', function () {
     // Chỉ tải lại toàn bộ danh sách khi có sự thay đổi về trạng thái quan trọng (state, paused, error, filename, exists)
     const hasCriticalChange = delta.state || delta.paused || delta.error || delta.filename || delta.exists;
     if (hasCriticalChange) {
-      loadDownloads();
+      if (delta.id && downloadItems.has(delta.id)) {
+        chrome.downloads.search({ id: delta.id }, (items) => {
+          if (items && items.length > 0) {
+            const updatedItem = items[0];
+            downloadItems.set(updatedItem.id, updatedItem);
+            const row = list.querySelector(`.download-item[data-id="${updatedItem.id}"]`);
+            if (row) {
+              row.replaceWith(createDownloadRow(updatedItem));
+            }
+          }
+        });
+      } else {
+        loadDownloads();
+      }
     }
   });
 
@@ -60,7 +85,20 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!message.detail) return;
 
     if (message.type === 'download-complete') {
-      loadDownloads(searchInput.value);
+      if (message.detail && message.detail.id && downloadItems.has(message.detail.id)) {
+        chrome.downloads.search({ id: message.detail.id }, (items) => {
+          if (items && items.length > 0) {
+            const updatedItem = items[0];
+            downloadItems.set(updatedItem.id, updatedItem);
+            const row = list.querySelector(`.download-item[data-id="${updatedItem.id}"]`);
+            if (row) {
+              row.replaceWith(createDownloadRow(updatedItem));
+            }
+          }
+        });
+      } else {
+        loadDownloads(searchInput.value);
+      }
       return;
     }
 
@@ -134,6 +172,7 @@ document.addEventListener('DOMContentLoaded', function () {
       clearSearchBtn.classList.add('hidden');
     }
 
+    // Debounce search
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(() => {
       loadDownloads(value);
@@ -149,70 +188,77 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // Main Loader
   function loadDownloads(query = searchInput.value) {
-    const currentRequestId = ++loadRequestId;
-    const requestedQuery = query;
+    const requestId = ++activeRequestId;
 
-    chrome.runtime.sendMessage({ action: 'get-session-downloads' }, (response) => {
-      if (currentRequestId !== loadRequestId) return;
+    list.innerHTML = '';
+    downloadItems.clear();
+    renderedDownloadIds.clear();
+    emptyState.classList.add('hidden');
+    oldestStartTime = null;
+    isLoading = false;
+    hasMore = true;
 
-      const sessionIds = (response && response.sessionDownloadIds) || [];
+    fetchDownloads(query, false, requestId);
+  }
 
-      const searchOptions = { 
-        limit: 50,
-        orderBy: ['-startTime']
-      };
-      if (query.trim() !== '') {
-        searchOptions.query = [query];
+  function fetchDownloads(queryText = '', isNextPage = false, requestId = activeRequestId) {
+    if (isLoading || !hasMore) return;
+    isLoading = true;
+
+    const searchOptions = { 
+      limit: PAGE_SIZE,
+      orderBy: ['-startTime']
+    };
+    if (queryText.trim() !== '') {
+      searchOptions.query = [queryText];
+    }
+    if (isNextPage && oldestStartTime) {
+      searchOptions.startedBefore = oldestStartTime;
+    }
+
+    chrome.downloads.search(searchOptions, function (items) {
+      if (requestId !== activeRequestId || queryText !== searchInput.value) {
+        return;
       }
 
-      chrome.downloads.search(searchOptions, function (items) {
-        if (currentRequestId !== loadRequestId || requestedQuery !== searchInput.value) return;
-
-        list.innerHTML = '';
-        downloadItems.clear();
-        
-        // Lọc bỏ các tệp tin chưa có tên (ví dụ tệp crdownload khi bắt đầu tải)
-        let validItems = items.filter(item => item.filename);
-        const sessionIdSet = new Set(sessionIds);
-
-        // Chế độ hiển thị thu gọn hoạt động khi:
-        // - Có tệp đang tải hoặc tệp hợp lệ thuộc phiên làm việc này
-        // - Người dùng chưa bấm nút "See more" để xem toàn bộ lịch sử (forceShowAll là false)
-        const hasSessionItems = validItems.some(item => isCurrentSessionItem(item, sessionIdSet));
-        const hasActiveItems = validItems.some(item => item.state === 'in_progress');
-        const isCollapsedView = (hasSessionItems || hasActiveItems) && !forceShowAll;
-
-        if (isCollapsedView) {
-          // Chỉ giữ lại các tệp đang tải hoặc được tải trong phiên này
-          const collapsedItems = validItems.filter(item =>
-            item.state === 'in_progress' || isCurrentSessionItem(item, sessionIdSet)
-          );
-          footerContainer.classList.toggle('hidden', collapsedItems.length >= validItems.length);
-          validItems = collapsedItems;
-        } else {
-          footerContainer.classList.add('hidden');
-        }
-
-        if (!validItems || validItems.length === 0) {
+      isLoading = false;
+      if (!items || items.length === 0) {
+        hasMore = false;
+        if (!isNextPage && list.children.length === 0) {
           emptyState.classList.remove('hidden');
-          return;
         }
+        return;
+      }
 
+      if (items.length < PAGE_SIZE) {
+        hasMore = false;
+      }
+
+      // Lọc bỏ các tệp tin chưa có tên hoặc đã được vẽ trên DOM
+      const newItems = items.filter(item => item.filename && !renderedDownloadIds.has(item.id));
+
+      const lastItem = items[items.length - 1];
+      oldestStartTime = lastItem.startTime;
+
+      if (newItems.length > 0) {
         emptyState.classList.add('hidden');
-
         const fragment = document.createDocumentFragment();
-        validItems.forEach(item => {
+        newItems.forEach(item => {
+          renderedDownloadIds.add(item.id);
           downloadItems.set(item.id, item);
           const row = createDownloadRow(item);
           fragment.appendChild(row);
         });
         list.appendChild(fragment);
-      });
-    });
-  }
+      }
 
-  function isCurrentSessionItem(item, sessionIdSet) {
-    return sessionIdSet.has(item.id) && !isRemovedDownload(item);
+      // Nếu tất cả các phần tử trong lô đều đã vẽ và vẫn còn dữ liệu cũ hơn, tự động nạp tiếp trang sau
+      if (newItems.length === 0 && hasMore) {
+        fetchDownloads(queryText, true, requestId);
+      } else if (list.children.length === 0 && !hasMore) {
+        emptyState.classList.remove('hidden');
+      }
+    });
   }
 
   function isRemovedDownload(item) {
@@ -402,6 +448,7 @@ document.addEventListener('DOMContentLoaded', function () {
     chrome.downloads.erase({ id: item.id }, () => {
       fadeOutRow(row, () => {
         downloadItems.delete(item.id);
+        renderedDownloadIds.delete(item.id);
         if (list.children.length === 0) {
           emptyState.classList.remove('hidden');
         }

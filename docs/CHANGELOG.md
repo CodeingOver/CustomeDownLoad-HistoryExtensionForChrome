@@ -2,6 +2,25 @@
 
 Tài liệu này ghi lại toàn bộ lịch sử các phiên bản phát hành và các cập nhật thay đổi của dự án.
 
+### [v1.2.42] - 2026-08-24
+
+#### - **[Thêm mới]**
+- Tự động focus vào thanh tìm kiếm khi mở popup Lịch sử (`EdgeHistoryPopup`):
+  - Bổ sung thuộc tính `autofocus` trong `popup.html` và lệnh `searchInput.focus()` trong `popup.js` để người dùng có thể gõ tìm kiếm lịch sử ngay khi vừa nhấp mở popup.
+
+#### - **[Cập nhật]**
+- Chuyển đổi cơ chế tải lịch sử tải xuống trong `EdgeDownloadsPopup` sang cuộn vô hạn (Infinite Scroll):
+  - `popup.js`: Áp dụng kỹ thuật phân trang (50 mục/lần) với tham số `startedBefore` và lắng nghe sự kiện cuộn với `requestAnimationFrame`, giúp cuộn mượt mà liên tục cho đến hết toàn bộ lịch sử tải xuống giống như bên History.
+  - Tích hợp bộ đệm `renderedDownloadIds` (Set in-memory) ngăn ngừa tuyệt đối tình trạng vẽ trùng lặp các mục tải có cùng timestamp.
+- Nâng phiên bản `EdgeHistoryPopup` và `EdgeDownloadsPopup` lên `1.2.42`.
+
+#### - **[Xóa bỏ]**
+- Loại bỏ hoàn toàn tính năng và giao diện nút "See more" trong `EdgeDownloadsPopup`:
+  - `popup.html` & `popup.css`: Xóa bỏ thẻ container footer và style của nút `See more`.
+  - `popup.js` & `background.js`: Dọn dẹp các biến, hàm thu gọn theo phiên (`forceShowAll`, `isCollapsedView`, `isCurrentSessionItem`, `sessionDownloadIds`, `get-session-downloads`).
+
+---
+
 ### [v1.2.41] - 2026-08-24
 
 #### - **[Cập nhật]**
