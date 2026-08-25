@@ -24,6 +24,9 @@ document.addEventListener('DOMContentLoaded', function () {
   const iconCache = new Map(); // Bộ đệm lưu trữ icon của tệp để tránh gọi API getFileIcon liên tục
   const downloadItems = new Map();
   const renderedDownloadIds = new Set(); // Bộ đệm in-memory kiểm tra trùng lặp cực nhanh
+  const speedTracker = new Map(); // Bộ nhớ lưu trữ tốc độ tải: id -> { lastBytesReceived, lastTime, speed }
+  let liveProgressTimer = null;
+  const LIVE_POLL_INTERVAL_MS = 600; // Chu kỳ 600ms cập nhật tốc độ và tiến trình cực kỳ mượt mà
 
   // Kết nối tới background để báo hiệu popup đang mở
   chrome.runtime.connect({ name: 'popup' });
@@ -51,6 +54,7 @@ document.addEventListener('DOMContentLoaded', function () {
   // Real-time downloads monitoring
   chrome.downloads.onCreated.addListener(() => {
     loadDownloads();
+    startLiveProgressPolling();
   });
 
   chrome.downloads.onChanged.addListener((delta) => {
@@ -62,10 +66,14 @@ document.addEventListener('DOMContentLoaded', function () {
           if (items && items.length > 0) {
             const updatedItem = items[0];
             downloadItems.set(updatedItem.id, updatedItem);
+            if (updatedItem.state !== 'in_progress') {
+              speedTracker.delete(updatedItem.id);
+            }
             const row = list.querySelector(`.download-item[data-id="${updatedItem.id}"]`);
             if (row) {
               row.replaceWith(createDownloadRow(updatedItem));
             }
+            checkAndManageLivePolling();
           }
         });
       } else {
@@ -79,12 +87,15 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (message.type === 'sync-all-progress') {
       (message.details || []).forEach(updateDownloadProgress);
+      checkAndManageLivePolling();
       return;
     }
 
     if (!message.detail) return;
 
     if (message.type === 'download-complete') {
+      speedTracker.delete(message.detail.id);
+      checkAndManageLivePolling();
       if (message.detail && message.detail.id && downloadItems.has(message.detail.id)) {
         chrome.downloads.search({ id: message.detail.id }, (items) => {
           if (items && items.length > 0) {
@@ -104,6 +115,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (message.type === 'download-progress') {
       updateDownloadProgress(message.detail);
+      checkAndManageLivePolling();
     }
   });
 
@@ -258,6 +270,8 @@ document.addEventListener('DOMContentLoaded', function () {
       } else if (list.children.length === 0 && !hasMore) {
         emptyState.classList.remove('hidden');
       }
+
+      checkAndManageLivePolling();
     });
   }
 
@@ -374,8 +388,11 @@ document.addEventListener('DOMContentLoaded', function () {
       } else {
         chrome.downloads.pause(item.id);
       }
+      setTimeout(checkAndManageLivePolling, 100);
     } else if (action === 'cancel') {
       chrome.downloads.cancel(item.id);
+      speedTracker.delete(item.id);
+      setTimeout(checkAndManageLivePolling, 100);
     } else if (action === 'resume-failed') {
       resumeFailedDownload(item);
     } else if (action === 'retry') {
@@ -450,10 +467,114 @@ document.addEventListener('DOMContentLoaded', function () {
       row.remove();
       downloadItems.delete(item.id);
       renderedDownloadIds.delete(item.id);
+      speedTracker.delete(item.id);
+      checkAndManageLivePolling();
       if (list.children.length === 0) {
         emptyState.classList.remove('hidden');
       }
     });
+  }
+
+  function checkAndManageLivePolling() {
+    const hasActiveDownloads = Array.from(downloadItems.values()).some(
+      item => item && item.state === 'in_progress' && !item.paused
+    );
+    if (hasActiveDownloads) {
+      startLiveProgressPolling();
+    } else {
+      stopLiveProgressPolling();
+    }
+  }
+
+  function startLiveProgressPolling() {
+    if (liveProgressTimer) return;
+    liveProgressTimer = setInterval(() => {
+      chrome.downloads.search({ state: 'in_progress' }, (items) => {
+        if (!items || items.length === 0) {
+          stopLiveProgressPolling();
+          return;
+        }
+
+        let hasActive = false;
+        items.forEach(item => {
+          if (!item.paused) {
+            hasActive = true;
+          }
+          const cachedItem = downloadItems.get(item.id);
+          const mergedItem = { ...(cachedItem || {}), ...item };
+          downloadItems.set(item.id, mergedItem);
+
+          const row = list.querySelector(`.download-item[data-id="${item.id}"]`);
+          if (row) {
+            updateDownloadRowProgress(row, mergedItem);
+          }
+        });
+
+        if (!hasActive) {
+          stopLiveProgressPolling();
+        }
+      });
+    }, LIVE_POLL_INTERVAL_MS);
+  }
+
+  function stopLiveProgressPolling() {
+    if (liveProgressTimer) {
+      clearInterval(liveProgressTimer);
+      liveProgressTimer = null;
+    }
+  }
+
+  function calculateDownloadSpeed(item) {
+    const id = item.id;
+    const now = Date.now();
+    const received = item.bytesReceived || 0;
+
+    if (item.paused || item.state !== 'in_progress') {
+      speedTracker.set(id, { lastBytesReceived: received, lastTime: now, speed: 0 });
+      return 0;
+    }
+
+    const prev = speedTracker.get(id);
+    if (!prev) {
+      speedTracker.set(id, { lastBytesReceived: received, lastTime: now, speed: 0 });
+      return 0;
+    }
+
+    const deltaBytes = received - prev.lastBytesReceived;
+    const deltaTime = (now - prev.lastTime) / 1000;
+
+    // Cập nhật tốc độ nếu khoảng thời gian giữa 2 lần đo >= 250ms
+    if (deltaTime >= 0.25) {
+      if (deltaBytes >= 0) {
+        const instantSpeed = deltaBytes / deltaTime;
+        // Áp dụng thuật toán làm mượt Exponential Moving Average (EMA) với alpha = 0.35
+        const smoothedSpeed = prev.speed > 0 
+          ? (0.35 * instantSpeed + 0.65 * prev.speed) 
+          : instantSpeed;
+        speedTracker.set(id, { lastBytesReceived: received, lastTime: now, speed: smoothedSpeed });
+        return smoothedSpeed;
+      } else {
+        // Trường hợp download restart
+        speedTracker.set(id, { lastBytesReceived: received, lastTime: now, speed: 0 });
+        return 0;
+      }
+    }
+
+    return prev.speed;
+  }
+
+  function formatSpeed(bytesPerSec) {
+    if (!bytesPerSec || bytesPerSec <= 0) return '0 B/s';
+    const k = 1024;
+    if (bytesPerSec < k) {
+      return `${Math.round(bytesPerSec)} B/s`;
+    } else if (bytesPerSec < k * k) {
+      return `${(bytesPerSec / k).toFixed(1)} KB/s`;
+    } else if (bytesPerSec < k * k * k) {
+      return `${(bytesPerSec / (k * k)).toFixed(1)} MB/s`;
+    } else {
+      return `${(bytesPerSec / (k * k * k)).toFixed(2)} GB/s`;
+    }
   }
 
   function updateDownloadProgress(item) {
@@ -470,11 +591,20 @@ document.addEventListener('DOMContentLoaded', function () {
     const received = item.bytesReceived || 0;
     const total = item.totalBytes || 0;
     const pct = total > 0 ? Math.round((received / total) * 100) : 0;
-    const sizeStr = formatBytes(received) + (total > 0 ? ` of ${formatBytes(total)}` : '');
 
     const statusLabel = row.querySelector('[data-role="status-label"]');
     if (statusLabel) {
-      statusLabel.textContent = `${pct}% - ${sizeStr}`;
+      if (item.paused) {
+        const sizeStr = total > 0 
+          ? `${formatBytes(received)} of ${formatBytes(total)}` 
+          : formatBytes(received);
+        statusLabel.textContent = `Paused - ${sizeStr}`;
+      } else {
+        const speed = calculateDownloadSpeed(item);
+        const speedStr = formatSpeed(speed);
+        const sizeStr = formatBytes(received) + (total > 0 ? ` of ${formatBytes(total)}` : '');
+        statusLabel.textContent = `${speedStr} - ${sizeStr}`;
+      }
     }
 
     const fill = row.querySelector('[data-role="progress-fill"]');

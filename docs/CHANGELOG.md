@@ -2,7 +2,20 @@
 
 Tài liệu này ghi lại toàn bộ lịch sử các phiên bản phát hành và các cập nhật thay đổi của dự án.
 
-### [v1.2.46] - 2026-08-24
+### [v1.2.46] - 2026-08-25
+
+#### - **[Thêm mới]**
+- Bổ sung cơ chế đo lường và hiển thị tốc độ tải xuống theo thời gian thực (`Download Speed`) phong cách Edge/Chromium trong `EdgeDownloadsPopup`:
+  - `popup.js`: Tích hợp bộ nhớ `speedTracker` và thuật toán làm mượt Exponential Moving Average (`EMA`, hệ số $\alpha = 0.35$) giúp chỉ số tốc độ tăng giảm mượt mà, triệt tiêu hiện tượng giật cục do truyền tải dữ liệu theo đợt.
+  - `popup.js`: Tích hợp hàm `formatSpeed` tự động chuyển đổi đơn vị (`B/s`, `KB/s`, `MB/s`, `GB/s`).
+  - `popup.js`: Kích hoạt vòng lặp live polling 600ms khi mở popup có tệp đang tải (`in_progress`), tự động ngắt kết nối khi hoàn thành hoặc đóng popup để tối ưu hóa 100% hiệu năng và tiết kiệm pin.
+
+#### - **[Cập nhật]**
+- Định dạng lại nhãn trạng thái tiến trình tải xuống (`status-label`):
+  - Hiển thị theo cấu trúc chuẩn: `<Tốc độ> - <Dung lượng tải> of <Tổng dung lượng>` (ví dụ: `32.7 MB/s - 491 MB of 1.2 GB` hoặc `32.7 MB/s - 491 MB` khi chưa rõ dung lượng tổng).
+  - Khi tạm dừng: hiển thị `Paused - <Dung lượng đã tải>`.
+- `popup.css`: Tinh chỉnh transition thanh tiến trình sang `transition: width 0.4s ease` giúp thanh trượt phản hồi mượt mà theo nhịp tải thời gian thực.
+- Nâng phiên bản `EdgeDownloadsPopup` lên `1.2.46`.
 
 #### - **[Xóa bỏ]**
 - Loại bỏ nút ghim tiện ích (`Pin history` / `btn-pin`) trên thanh tiêu đề `EdgeHistoryPopup`:
