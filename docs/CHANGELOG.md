@@ -2,6 +2,34 @@
 
 Tài liệu này ghi lại toàn bộ lịch sử các phiên bản phát hành và các cập nhật thay đổi của dự án.
 
+### [v1.3.1] - 2026-09-07
+
+#### - **[Cập nhật]**
+- Tinh chỉnh hiệu ứng hoạt ảnh tải xuống theo phong cách nguyên bản của Google Chrome:
+  - `EdgeDownloadsPopup/content.js`: Chuyển đổi quỹ đạo bay từ đường cong Bezier sang chuyển động thẳng tắp dứt khoát (Straight-line vector) hướng trực diện từ điểm click chuột về biểu tượng tiện ích ở thanh công cụ góc trên bên phải.
+  - Tối ưu hóa thời gian chuyển động cực nhanh xuống **~280ms** với đường cong gia tốc `cubic-bezier(0.2, 0, 0, 1)`.
+  - Loại bỏ hoàn toàn hiệu ứng gợn sóng (ripple) hấp thụ thứ cấp rườm rà; chip lặn thẳng vào thanh công cụ và giải phóng DOM ngay tức khắc khi chạm đích.
+  - Giảm kích thước chip xuống 26px x 26px nhỏ gọn, thanh thoát, hiển thị tối giản và sắc nét.
+- Đồng bộ nâng phiên bản của cả hai tiện ích mở rộng (`EdgeDownloadsPopup` và `EdgeHistoryPopup`) lên `1.3.1` tại các tệp `manifest.json`.
+
+---
+
+### [v1.3.0] - 2026-09-07
+
+#### - **[Thêm mới]**
+- Bổ sung hiệu ứng hoạt ảnh bay siêu nhanh phong cách Google Chrome (`Fly Animation`) khi bắt đầu tải xuống tệp tin trong `EdgeDownloadsPopup`:
+  - `EdgeDownloadsPopup/content.js`: Tạo Content Script lắng nghe tọa độ click chuột (`pointerdown`) của người dùng và tin nhắn `download-started-fly` từ Service Worker.
+  - Tự động hiển thị chip tròn nhỏ màu xanh Google (`#1a73e8`, kích thước 28px x 28px) chứa icon mũi tên tải xuống Material Design, bay lướt cong theo đường Quadratic Bezier (~340ms) từ điểm click hoặc trung tâm màn hình hướng thẳng vào biểu tượng tiện ích trên thanh công cụ góc trên bên phải.
+  - Tích hợp hiệu ứng gợn sóng hấp thụ (Ripple ping ~180ms) tại vị trí icon thanh công cụ khi chip chạm tới đích.
+  - Sử dụng Shadow DOM độc lập (`attachShadow`) và tự động giải phóng toàn bộ DOM sau khi hoàn tất hoạt ảnh, đảm bảo cô lập 100% không ảnh hưởng hoặc xung đột CSS với bất kỳ trang web nào.
+  - `EdgeDownloadsPopup/manifest.json`: Khai báo `content_scripts` chạy `content.js` tại `http://*/*` và `https://*/*` ở chế độ `document_idle` (`all_frames: false`).
+
+#### - **[Cập nhật]**
+- `EdgeDownloadsPopup/background.js`: Tích hợp hàm `notifyTabDownloadStarted()` trong sự kiện `chrome.downloads.onCreated` để tự động phát hiện tab active và gửi tín hiệu kích hoạt hoạt ảnh bay tới Content Script.
+- Đồng bộ nâng phiên bản của cả hai tiện ích mở rộng (`EdgeDownloadsPopup` và `EdgeHistoryPopup`) lên `1.3.0` tại các tệp `manifest.json`.
+
+---
+
 ### [v1.2.46] - 2026-08-25
 
 #### - **[Thêm mới]**

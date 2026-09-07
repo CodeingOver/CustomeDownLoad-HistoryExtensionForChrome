@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "incognito": "spanning",
   "name": "Edge Downloads",
-  "version": "1.2.46",
+  "version": "1.3.1",
   "description": "Popup quản lý lượt tải xuống thiết kế Fluent phong cách Edge",
   "permissions": [
     "downloads",
@@ -10,6 +10,18 @@
     "downloads.ui",
     "offscreen",
     "storage"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
   ],
   "background": {
     "service_worker": "background.js"

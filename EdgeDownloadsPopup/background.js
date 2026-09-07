@@ -67,7 +67,26 @@ chrome.downloads.onCreated.addListener((item) => {
 
   updateBadgeAndAnimation();
   scheduleProgressBatch();
+  notifyTabDownloadStarted();
 });
+
+function notifyTabDownloadStarted() {
+  chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
+    let targetTab = tabs && tabs[0];
+    if (!targetTab) {
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabsCurrent) => {
+        if (tabsCurrent && tabsCurrent[0] && tabsCurrent[0].id) {
+          chrome.tabs.sendMessage(tabsCurrent[0].id, { action: 'download-started-fly' }).catch(() => {});
+        }
+      });
+      return;
+    }
+    if (targetTab.id) {
+      chrome.tabs.sendMessage(targetTab.id, { action: 'download-started-fly' }).catch(() => {});
+    }
+  });
+}
+
 
 
 function disableNativeDownloadUi(source) {

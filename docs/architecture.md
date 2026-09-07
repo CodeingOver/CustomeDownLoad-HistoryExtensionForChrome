@@ -41,6 +41,7 @@ d:/CodePython/CustomeExtensionForChrome/
     ├── popup.css                       # Kiểu giao diện và progress bar
     ├── popup.js                        # Logic theo dõi & thao tác tải xuống
     ├── background.js                   # Service Worker quản lý vòng đời tải xuống và vẽ Canvas
+    ├── content.js                      # Content Script hiển thị hoạt ảnh chip tròn bay vào icon khi bắt đầu tải
     ├── offscreen.html                  # HTML chứa script offscreen để polling tiến độ ngầm
     ├── offscreen.js                    # Logic offscreen phát tick polling tiến trình và giữ Service Worker không bị ngủ đông
     ├── icon.svg                        # Icon gốc dạng SVG (trắng)
@@ -75,7 +76,8 @@ Hệ thống chia làm hai thành phần lớn tương ứng với hai tiện í
    - Trình điều khiển logic (`popup.js`): Giao tiếp với API trình duyệt (`chrome.history` và `chrome.sessions`) để lấy lịch sử và khôi phục tab/cửa sổ đã đóng gần đây.
 2. **Thành phần Tải xuống (Downloads Component)**:
    - Giao diện người dùng (`popup.html`, `popup.css`, `popup.js`): Hiển thị danh sách tải xuống phân trang cuộn vô hạn, mở tệp, hiển thị vị trí, tiếp tục/tải lại lượt tải bị gián đoạn và xóa lịch sử. Khi mở popup, `popup.js` tự động kích hoạt vòng lặp live polling 600ms truy vấn các mục `in_progress`, sử dụng thuật toán làm mượt Exponential Moving Average (`EMA`, $\alpha = 0.35$) với bộ nhớ `speedTracker` để đo và hiển thị tốc độ tải xuống tức thời chuẩn xác (`32.7 MB/s - 491 MB of 1.2 GB`). Đồng thời lắng nghe message batch `sync-all-progress` từ Service Worker qua `chrome.runtime.onMessage` để cập nhật DOM tại chỗ theo mô hình event-driven.
-   - Service Worker (`background.js`): Chạy ngầm để quản lý vòng đời tải xuống, tắt UI mặc định của Chrome khi Service Worker nạp bằng `chrome.downloads.setUiOptions`, đổi icon toolbar theo trạng thái tải xuống (mặc định, glow, pause overlay, hoàn tất overlay), điều phối đóng/mở tài liệu offscreen. Đồng thời gom dữ liệu tiến trình trong `activeDownloads` thành message batch gửi về Popup tối đa mỗi 3 giây khi chạy ngầm.
+   - Content Script (`content.js`): Chạy ngầm cô lập trên các trang web (`http://*/*`, `https://*/*`) bằng Shadow DOM. Theo dõi tọa độ click chuột (`pointerdown`) và lắng nghe tin nhắn `download-started-fly` từ Service Worker. Khi phát hiện bắt đầu tải, hiển thị ngay hoạt ảnh chip tròn Material Design phong cách Google Chrome (màu xanh `#1a73e8`, 26px) bay thẳng tắp dứt khoát (~280ms) từ vị trí click chuột (hoặc trung tâm màn hình) hướng trực diện vào biểu tượng tiện ích ở góc trên bên phải thanh công cụ và tự giải phóng toàn bộ DOM ngay khi chạm đích, không dùng hiệu ứng thứ cấp rườm rà.
+   - Service Worker (`background.js`): Chạy ngầm để quản lý vòng đời tải xuống, tắt UI mặc định của Chrome khi Service Worker nạp bằng `chrome.downloads.setUiOptions`, điều phối phát tin hiệu ứng bay tới tab active thông qua `notifyTabDownloadStarted()`, đổi icon toolbar theo trạng thái tải xuống (mặc định, glow, pause overlay, hoàn tất overlay), điều phối đóng/mở tài liệu offscreen. Đồng thời gom dữ liệu tiến trình trong `activeDownloads` thành message batch gửi về Popup tối đa mỗi 3 giây khi chạy ngầm.
    - Tài liệu ẩn (`offscreen.html`, `offscreen.js`): Môi trường DOM ẩn phát tick `'polling-tick'` định kỳ 3 giây để Service Worker đọc nhẹ `bytesReceived` và `totalBytes` bằng `chrome.downloads.search({ state: 'in_progress' })`, vì `chrome.downloads.onChanged` không cung cấp nhịp thay đổi byte liên tục.
 
 ---
@@ -92,7 +94,7 @@ Hệ thống chia làm hai thành phần lớn tương ứng với hai tiện í
 ### Luồng 2: Theo dõi, đo tốc độ và cập nhật tiến trình tải xuống
 1. Người dùng bắt đầu tải xuống một tệp tin.
 2. Trình duyệt kích hoạt sự kiện `chrome.downloads.onCreated`.
-3. Background Service Worker đã thiết lập vô hiệu hóa bong bóng tải gốc ở giai đoạn khởi động bằng `setUiOptions`. Khi nhận sự kiện tải mới, tiến trình tải được xử lý êm trong nền mà không tự động mở popup, tránh làm gián đoạn trải nghiệm người dùng. Sau đó Service Worker khởi động hoạt ảnh nhấp nháy phát sáng (glow icon) và gọi `ensureOffscreenDocument()` để kích hoạt tài liệu ẩn Offscreen.
+3. Background Service Worker đã thiết lập vô hiệu hóa bong bóng tải gốc ở giai đoạn khởi động bằng `setUiOptions`. Khi nhận sự kiện tải mới, tiến trình tải được xử lý êm trong nền mà không tự động mở popup, tránh làm gián đoạn trải nghiệm người dùng. Đồng thời, Service Worker kích hoạt `notifyTabDownloadStarted()` gửi tin nhắn `download-started-fly` đến Content Script của tab active hiện tại để tạo hiệu ứng chip tròn bay vào biểu tượng tải trên thanh công cụ. Sau đó Service Worker khởi động hoạt ảnh nhấp nháy phát sáng (glow icon) và gọi `ensureOffscreenDocument()` để kích hoạt tài liệu ẩn Offscreen.
 4. Tài liệu Offscreen hoạt động và gửi tin nhắn `'polling-tick'` định kỳ mỗi 3 giây để đánh thức Service Worker và kích hoạt một lượt đọc nhẹ `chrome.downloads.search({ state: 'in_progress' })`.
 5. Service Worker nhận sự kiện trạng thái qua `chrome.downloads.onChanged` để cập nhật các trường quan trọng như `state`, `filename`, `paused` và `error`. Với mỗi tick polling, Service Worker chỉ so sánh hai trường `bytesReceived` và `totalBytes`; nếu byte thật sự thay đổi thì mới cập nhật Badge và gửi message batch `sync-all-progress` về Popup.
 6. Khi popup đang mở:
@@ -136,6 +138,8 @@ Hệ thống sử dụng các API gốc của trình duyệt Chrome:
 - `chrome.downloads.setUiOptions`: Cấu hình tắt/bật bong bóng tải xuống mặc định của trình duyệt trên Chrome/Chromium hiện đại.
 - `chrome.action.setIcon`: Thay đổi biểu tượng (icon) trên thanh công cụ động.
 - `chrome.action.setBadgeText`: Cập nhật văn bản chỉ số badge (phần trăm).
+- `chrome.tabs.query`: Tìm kiếm tab active trong cửa sổ hiện hành để điều phối gửi tin nhắn kích hoạt hoạt ảnh bay.
+- `chrome.tabs.sendMessage`: Truyền tin nhắn `download-started-fly` từ Service Worker tới Content Script trong tab active.
 - `chrome.runtime.onMessage.addListener`: Lắng nghe tin nhắn trao đổi dữ liệu giữa các thành phần, nhận dữ liệu tiến trình tải xuống event-driven và xử lý tín hiệu dọn badge hoàn tất mà không xóa nhầm badge phần trăm khi vẫn còn tệp đang tải.
 
 ---
@@ -165,14 +169,17 @@ sequenceDiagram
     autonumber
     actor User as Người dùng
     participant Chrome as Trình duyệt Chrome
+    participant Content as Content Script (Web Tab)
     participant SW as Service Worker (Bg)
     participant Offscreen as Tài liệu ẩn (Offscreen)
     participant Pop as Pop-up Download
     participant Disk as Ổ đĩa máy tính
 
-    User->>Chrome: Bắt đầu tải file
+    User->>Chrome: Bắt đầu tải file (Click/Download)
     Chrome->>SW: Kích hoạt sự kiện onCreated
-    SW->>SW: Lưu ID vào sessionDownloadIds & bật hoạt ảnh Glow
+    SW->>Content: Gửi message download-started-fly (tab active)
+    Content->>User: Hiển thị chip tròn Google bay thẳng vào toolbar icon (~280ms)
+    SW->>SW: Lưu ID vào activeDownloads & bật hoạt ảnh Glow
     SW->>Chrome: Khởi tạo Offscreen Document
     loop Định kỳ polling mỗi 3 giây
         Offscreen->>SW: Gửi tin nhắn polling-tick
