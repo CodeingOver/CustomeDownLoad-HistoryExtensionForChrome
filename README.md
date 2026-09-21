@@ -9,12 +9,14 @@ Dự án này là bộ đôi tiện ích mở rộng (Chrome Extensions) đượ
   - Tích hợp thanh tìm kiếm lịch sử với hiệu ứng focus Fluent và nút xóa nhanh nội dung tìm kiếm.
   - Quản lý các tab gần đây (Recently closed) để khôi phục nhanh phiên làm việc vừa đóng.
   - Thao tác nhanh: Nhấp để mở tab mới, di chuột qua để xóa nhanh URL khỏi lịch sử hoặc sao chép liên kết.
+  - Tự động chuyển đổi biểu tượng (icon) nền tối cho người dùng Chrome giao diện sáng (Light theme) với kích thước biểu tượng đồng hồ to chuẩn xác Scale 1.0 (ngang bằng 100% với theme tối).
 - **EdgeDownloadsPopup**:
   - Quản lý danh sách tải xuống gần đây đồng bộ thiết kế với menu lịch sử.
   - Tải và nhận diện đuôi tệp để tự động hiển thị biểu tượng tương ứng (.docx, .pdf, .zip, .jar...).
   - Hiển thị tệp tin đã bị xóa khỏi đĩa cứng (hiệu ứng gạch ngang tên tệp và nhãn "Removed").
   - Thanh tiến trình tải xuống thời gian thực đối với các tệp tin đang tải.
   - Hiệu ứng hoạt ảnh bắt đầu tải xuống (Fly Animation phong cách Google Chrome): Chip tròn nhỏ màu xanh Material bay thẳng dứt khoát siêu nhanh (~280ms) từ điểm click chuột hoặc giữa màn hình vào thẳng biểu tượng tiện ích trên thanh công cụ.
+  - Tự động chuyển đổi biểu tượng nền tối (Dark background icon) cho Chrome theme sáng theo thiết lập hệ thống/trình duyệt (`prefers-color-scheme`), kích thước glyph Scale 1.0 to bằng nhau tuyệt đối với theme tối, hoàn toàn tự động không cần bật/tắt thủ công.
   - Thao tác nhanh: Mở tệp trực tiếp, hiển thị tệp trong thư mục lưu trữ, tiếp tục/tải lại lượt tải bị gián đoạn, hoặc xóa khỏi lịch sử tải xuống.
 
 ## 2. Yêu cầu hệ thống

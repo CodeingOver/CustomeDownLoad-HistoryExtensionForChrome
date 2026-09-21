@@ -19,6 +19,16 @@ const GLOW_ICON_PATHS = {
   "32": "icon_glow32.png",
   "48": "icon_glow48.png"
 };
+const DARK_BG_ICON_PATHS = {
+  "16": "icon_dark16.png",
+  "32": "icon_dark32.png",
+  "48": "icon_dark48.png"
+};
+const DARK_BG_GLOW_ICON_PATHS = {
+  "16": "icon_dark_glow16.png",
+  "32": "icon_dark_glow32.png",
+  "48": "icon_dark_glow48.png"
+};
 const STATE_OVERLAY_CONFIGS = {
   pause: {
     backgroundColor: '#6b6b6b',
@@ -30,6 +40,53 @@ const STATE_OVERLAY_CONFIGS = {
   }
 };
 const stateOverlayIconCache = {};
+let useDarkBgIcon = false;
+const serviceWorkerStartTime = Date.now();
+
+function getDefaultIconPaths() {
+  return useDarkBgIcon ? DARK_BG_ICON_PATHS : DEFAULT_ICON_PATHS;
+}
+
+function getGlowIconPaths() {
+  return useDarkBgIcon ? DARK_BG_GLOW_ICON_PATHS : GLOW_ICON_PATHS;
+}
+
+function applyIconTheme(enabled) {
+  useDarkBgIcon = !!enabled;
+  chrome.storage.local.set({ useDarkBgIcon: useDarkBgIcon });
+  if (!wasDownloading && !isCompleteState) {
+    setActionIcon(getDefaultIconPaths());
+  } else if (isCompleteState) {
+    showCompletionBadge();
+  }
+}
+
+// Khởi tạo cài đặt icon theme từ storage khi service worker khởi động
+chrome.storage.local.get('useDarkBgIcon', (res) => {
+  if (res && res.useDarkBgIcon !== undefined) {
+    useDarkBgIcon = !!res.useDarkBgIcon;
+    if (!wasDownloading && !isCompleteState) {
+      setActionIcon(getDefaultIconPaths());
+    }
+  }
+});
+
+function isFreshDownload(item) {
+  if (!item) return false;
+  // Bỏ qua nếu đã nhận byte hoặc không ở trạng thái in_progress
+  if (item.bytesReceived && item.bytesReceived > 0) return false;
+  if (item.state && item.state !== 'in_progress') return false;
+
+  const itemStartTime = item.startTime ? new Date(item.startTime).getTime() : Date.now();
+  const now = Date.now();
+
+  // Bỏ qua các lượt tải được Chrome khôi phục từ phiên cũ trước khi Service Worker khởi động
+  if (itemStartTime < serviceWorkerStartTime - 1500) return false;
+  // Bỏ qua nếu thời điểm bắt đầu lệch quá 3.5 giây so với hiện tại
+  if (now - itemStartTime > 3500) return false;
+
+  return true;
+}
 
 function debugLog(...args) {
   if (DEBUG) {
@@ -67,24 +124,50 @@ chrome.downloads.onCreated.addListener((item) => {
 
   updateBadgeAndAnimation();
   scheduleProgressBatch();
-  notifyTabDownloadStarted();
+
+  // Chỉ kích hoạt hoạt ảnh bay cho lượt tải thực sự mới trong phiên hiện tại
+  if (isFreshDownload(item)) {
+    notifyTabDownloadStarted();
+  }
 });
 
 function notifyTabDownloadStarted() {
   chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
-    let targetTab = tabs && tabs[0];
-    if (!targetTab) {
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabsCurrent) => {
-        if (tabsCurrent && tabsCurrent[0] && tabsCurrent[0].id) {
-          chrome.tabs.sendMessage(tabsCurrent[0].id, { action: 'download-started-fly' }).catch(() => {});
+    const activeTab = tabs && tabs[0];
+    if (activeTab && activeTab.id) {
+      sendFlyAnimationToTab(activeTab);
+    } else {
+      chrome.tabs.query({ active: true, currentWindow: true }, (cwTabs) => {
+        const tab = cwTabs && cwTabs[0];
+        if (tab && tab.id) {
+          sendFlyAnimationToTab(tab);
         }
       });
-      return;
-    }
-    if (targetTab.id) {
-      chrome.tabs.sendMessage(targetTab.id, { action: 'download-started-fly' }).catch(() => {});
     }
   });
+}
+
+function sendFlyAnimationToTab(tab) {
+  if (!tab || !tab.id) return;
+  chrome.tabs.sendMessage(tab.id, { action: 'download-started-fly' })
+    .catch(() => {
+      // 1. Trường hợp tab vừa tạo do target="_blank" hoặc window.open: gửi tiếp về openerTabId nếu có
+      if (tab.openerTabId) {
+        chrome.tabs.sendMessage(tab.openerTabId, { action: 'download-started-fly' }).catch(() => {});
+      }
+
+      // 2. Trường hợp tab đã mở từ trước khi nạp extension: chủ động inject content script
+      if (tab.url && (tab.url.startsWith('http://') || tab.url.startsWith('https://'))) {
+        if (chrome.scripting && chrome.scripting.executeScript) {
+          chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            files: ['content.js']
+          }).then(() => {
+            chrome.tabs.sendMessage(tab.id, { action: 'download-started-fly' }).catch(() => {});
+          }).catch(() => {});
+        }
+      }
+    });
 }
 
 
@@ -254,7 +337,7 @@ function updateBadgeAndAnimation() {
   isCompleteState = false;
   lastTerminalDownloadState = null;
   if (!animationInterval) {
-    setActionIcon(DEFAULT_ICON_PATHS);
+    setActionIcon(getDefaultIconPaths());
   }
   startAnimation();
 
@@ -360,16 +443,18 @@ async function drawStateOverlayIcon(state) {
   const config = STATE_OVERLAY_CONFIGS[state];
   if (!config) return;
 
+  const cacheKey = `${state}_${useDarkBgIcon ? 'dark' : 'default'}`;
   try {
-    if (stateOverlayIconCache[state]) {
-      await chrome.action.setIcon({ imageData: stateOverlayIconCache[state] });
+    if (stateOverlayIconCache[cacheKey]) {
+      await chrome.action.setIcon({ imageData: stateOverlayIconCache[cacheKey] });
       return;
     }
 
     const imageDatas = {};
+    const basePrefix = useDarkBgIcon ? 'icon_dark' : 'icon';
     for (const size of [16, 32, 48]) {
       const [baseBitmap, overlayBitmap] = await Promise.all([
-        loadBitmap(`icon${size}.png`),
+        loadBitmap(`${basePrefix}${size}.png`),
         loadBitmap(`${config.overlayPrefix}${size}.png`)
       ]);
 
@@ -402,11 +487,11 @@ async function drawStateOverlayIcon(state) {
       imageDatas[size] = ctx.getImageData(0, 0, size, size);
     }
 
-    stateOverlayIconCache[state] = imageDatas;
+    stateOverlayIconCache[cacheKey] = imageDatas;
     await chrome.action.setIcon({ imageData: imageDatas });
   } catch (err) {
     console.warn(`[background.js] Không thể vẽ icon overlay ${state}:`, err.message);
-    setActionIcon(DEFAULT_ICON_PATHS);
+    setActionIcon(getDefaultIconPaths());
   }
 }
 
@@ -422,12 +507,11 @@ function startAnimation() {
   
   animationInterval = setInterval(() => {
     isGlowState = !isGlowState;
-    const path = isGlowState ? GLOW_ICON_PATHS : DEFAULT_ICON_PATHS;
+    const path = isGlowState ? getGlowIconPaths() : getDefaultIconPaths();
 
     setActionIcon(path);
   }, 1500);
 }
-
 // Chỉ xóa bỏ interval hoạt ảnh tiến trình mà không ghi đè biểu tượng
 function clearProgressAnimation() {
   if (animationInterval) {
@@ -541,6 +625,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     stopAnimation(); // Khôi phục biểu tượng mặc định
   } else if (request.action === 'polling-tick') {
     handleProgressPollingTick();
+  } else if (request.action === 'set-icon-theme' || request.action === 'theme-detected') {
+    const isLight = request.useDarkBgIcon !== undefined ? !!request.useDarkBgIcon : !!request.isLight;
+    applyIconTheme(isLight);
   }
 });
 

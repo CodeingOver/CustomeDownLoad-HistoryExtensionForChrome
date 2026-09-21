@@ -7,30 +7,87 @@
   }
   window.__edgeDownloadsContentScriptLoaded = true;
 
+  const isTopWindow = (window === window.top);
   let lastClickPos = null;
   let lastClickTime = 0;
 
-  // Ghi nhận vị trí click chuột gần nhất của người dùng
+  // 1. Ghi nhận vị trí click chuột của người dùng
   window.addEventListener(
     'pointerdown',
     (event) => {
       if (event.isPrimary !== false) {
         lastClickPos = { x: event.clientX, y: event.clientY };
         lastClickTime = Date.now();
+
+        // Nếu click diễn ra bên trong iframe, chuyển tiếp thông tin lên top window
+        if (!isTopWindow) {
+          try {
+            window.top.postMessage(
+              {
+                type: '__EDGE_DL_CLICK__',
+                x: event.screenX,
+                y: event.screenY
+              },
+              '*'
+            );
+          } catch (e) {}
+        }
       }
     },
     { capture: true, passive: true }
   );
 
-  // Lắng nghe thông báo từ background Service Worker khi có tệp bắt đầu tải
-  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message && message.action === 'download-started-fly') {
-      playChromeStraightFlyAnimation();
-      if (typeof sendResponse === 'function') {
-        sendResponse({ received: true });
+  // 2. Top window lắng nghe sự kiện click chuyển tiếp từ các iframe con
+  if (isTopWindow) {
+    window.addEventListener('message', (event) => {
+      if (event && event.data && event.data.type === '__EDGE_DL_CLICK__') {
+        lastClickTime = Date.now();
+        // Nếu có tọa độ screen, tính toán tương đối sang viewport hiện tại
+        if (typeof event.data.x === 'number' && typeof event.data.y === 'number') {
+          const winX = window.screenX || 0;
+          const winY = window.screenY || 0;
+          const relX = event.data.x - winX;
+          const relY = event.data.y - winY;
+          if (relX > 0 && relX < window.innerWidth && relY > 0 && relY < window.innerHeight) {
+            lastClickPos = { x: relX, y: relY };
+          }
+        }
       }
+    });
+
+    // 3. Lắng nghe thông báo từ background Service Worker khi có tệp bắt đầu tải
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      if (message && message.action === 'download-started-fly') {
+        // Chỉ kích hoạt hoạt ảnh nếu tab này đang hiển thị với người dùng
+        if (document.visibilityState === 'visible') {
+          playChromeStraightFlyAnimation();
+        }
+        if (typeof sendResponse === 'function') {
+          sendResponse({ received: true });
+        }
+      }
+    });
+
+    // Tự động phát hiện và đồng bộ chế độ icon theo theme người dùng (Light/Dark)
+    function syncTheme() {
+      try {
+        if (window.matchMedia) {
+          const isLight = window.matchMedia('(prefers-color-scheme: light)').matches;
+          chrome.runtime.sendMessage({ action: 'theme-detected', isLight }).catch(() => {});
+        }
+      } catch (e) {}
     }
-  });
+    syncTheme();
+    try {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: light)');
+      if (mediaQuery.addEventListener) {
+        mediaQuery.addEventListener('change', syncTheme);
+      } else if (mediaQuery.addListener) {
+        mediaQuery.addListener(syncTheme);
+      }
+    } catch (e) {}
+  }
+
 
   /**
    * Tạo hoạt ảnh bay thẳng phong cách Chrome khi nhấn tải:
@@ -44,7 +101,7 @@
       const now = Date.now();
       let startX, startY;
 
-      if (lastClickPos && now - lastClickTime < 4000) {
+      if (lastClickPos && now - lastClickTime < 5000) {
         startX = Math.min(Math.max(16, lastClickPos.x), window.innerWidth - 16);
         startY = Math.min(Math.max(16, lastClickPos.y), window.innerHeight - 16);
       } else {
@@ -142,7 +199,7 @@
       // 6. Xóa ngay khi chạm đích, không hiệu ứng rườm rà
       animation.onfinish = () => {
         chip.remove();
-        if (shadow.children.length === 0 && container.parentNode) {
+        if (shadow && shadow.children.length === 0 && container.parentNode) {
           container.parentNode.removeChild(container);
         }
       };

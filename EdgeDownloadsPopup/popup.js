@@ -175,6 +175,26 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
 
+  // Tự động phát hiện và đồng bộ chế độ icon theo theme hệ thống/trình duyệt (Light/Dark)
+  function detectAndSyncTheme() {
+    try {
+      if (window.matchMedia) {
+        const isLight = window.matchMedia('(prefers-color-scheme: light)').matches;
+        chrome.runtime.sendMessage({ action: 'theme-detected', isLight }).catch(() => {});
+      }
+    } catch (e) {}
+  }
+  detectAndSyncTheme();
+  try {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: light)');
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener('change', detectAndSyncTheme);
+    } else if (mediaQuery.addListener) {
+      mediaQuery.addListener(detectAndSyncTheme);
+    }
+  } catch (e) {}
+
+
   // Search input events
   searchInput.addEventListener('input', () => {
     const value = searchInput.value;

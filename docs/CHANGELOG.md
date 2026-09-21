@@ -2,6 +2,51 @@
 
 Tài liệu này ghi lại toàn bộ lịch sử các phiên bản phát hành và các cập nhật thay đổi của dự án.
 
+### [v1.3.3] - 2026-09-22
+
+#### - **[Cập nhật]**
+- Tự động hóa 100% cơ chế chuyển đổi biểu tượng (icon) theo giao diện sáng/tối của hệ thống và trình duyệt:
+  - Loại bỏ hoàn toàn tùy chọn bật/tắt thủ công trong menu tiện ích popup để giao diện tối giản, tự động phản hồi ngay khi theme thay đổi (`prefers-color-scheme`).
+  - Cập nhật `EdgeDownloadsPopup/popup.js` và `EdgeDownloadsPopup/content.js`: Tự động gửi thông điệp `theme-detected` về Service Worker khi phát hiện hoặc có sự thay đổi theme sáng/tối.
+  - Cập nhật `EdgeDownloadsPopup/background.js`: Lắng nghe sự kiện `theme-detected` và tự động cập nhật biểu tượng thanh công cụ (`chrome.action.setIcon`).
+- Khắc phục triệt để lỗi biểu tượng theme sáng bị nhỏ hơn biểu tượng theme tối:
+  - Tái tạo toàn bộ bộ biểu tượng nền tối (`icon_dark*.png`, `icon_dark_glow*.png`) với tỷ lệ nguyên bản **Scale 1.0** (1:1 chuẩn xác với icon gốc).
+  - Tối ưu hóa nền bo góc hình học thanh thoát (`rounded-rect` r=18%), giữ nguyên độ dày nét vẽ (3px thân mũi tên, đường viền đồng hồ đầy đủ) và các pixel chống răng cưa (anti-aliasing) giúp icon to rõ, sắc nét ngang bằng tuyệt đối với theme tối.
+
+#### - **[Thêm mới]**
+- Bổ sung tính năng chuyển đổi biểu tượng nền tối tự động cho tiện ích Lịch sử (`EdgeHistoryPopup`):
+  - Tạo bộ biểu tượng nền tối chất lượng cao `EdgeHistoryPopup/icon_dark{16,32,48,128}.png` và `EdgeHistoryPopup/icon_dark.svg` theo chuẩn Fluent Design.
+  - Tạo Service Worker `EdgeHistoryPopup/background.js` quản lý vòng đời và chuyển đổi biểu tượng thanh công cụ theo theme.
+  - Tạo `EdgeHistoryPopup/content.js` để tự động phát hiện media query `prefers-color-scheme: light` khi người dùng duyệt web và đồng bộ về Service Worker.
+  - Cập nhật `EdgeHistoryPopup/popup.js` tích hợp đồng bộ theme tự động ngay khi mở popup.
+  - Khai báo quyền `"storage"`, `background`, và `content_scripts` trong `EdgeHistoryPopup/manifest.json`.
+- Đồng bộ nâng phiên bản của cả hai tiện ích mở rộng (`EdgeDownloadsPopup` và `EdgeHistoryPopup`) lên `1.3.3` tại các tệp `manifest.json`.
+
+---
+
+### [v1.3.2] - 2026-09-22
+
+#### - **[Sửa lỗi]**
+- Khắc phục triệt để lỗi hoạt ảnh tự kích hoạt khi khởi động trình duyệt Chrome:
+  - `EdgeDownloadsPopup/background.js`: Tích hợp hàm `isFreshDownload(item)` kiểm tra `item.startTime` và `item.bytesReceived`, loại bỏ các lượt tải cũ hoặc lượt tải được Chrome phục hồi từ phiên làm việc trước khi Service Worker khởi động.
+- Sửa lỗi không hiển thị hoạt ảnh tải xuống tại một số trang web và kịch bản đặc biệt:
+  - `EdgeDownloadsPopup/background.js`: Hỗ trợ trường hợp tải file mở tab mới (`target="_blank"`, `window.open`) bằng cách tự động gửi tín hiệu kích hoạt về tab gốc (`openerTabId`).
+  - `EdgeDownloadsPopup/background.js`: Tích hợp quyền `"scripting"` để tự động inject `content.js` vào các tab đã mở từ trước khi cập nhật extension.
+  - `EdgeDownloadsPopup/manifest.json`: Bật `"all_frames": true` cho Content Script để ghi nhận sự kiện click tải xuống từ bên trong các thẻ `<iframe>`.
+  - `EdgeDownloadsPopup/content.js`: Hỗ trợ iframe chuyển tiếp tọa độ click lên cửa sổ cha (`window.top`) và giới hạn chỉ phát hoạt ảnh trên tab đang hiển thị (`document.visibilityState === 'visible'`).
+
+#### - **[Thêm mới]**
+- Bổ sung bộ biểu tượng nền đen (`icon_dark*.png`, `icon_dark_glow*.png`, `icon_dark.svg`) tối ưu cho người dùng Chrome giao diện sáng (Light Theme):
+  - Biểu tượng dạng huy hiệu tròn nền tối (`#1c1c1e`) viền tinh tế, nổi bật rõ nét trên thanh công cụ sáng màu của trình duyệt.
+  - `EdgeDownloadsPopup/popup.html`: Tích hợp tùy chọn bật/tắt `Dark background icon (Light theme)` trong menu tùy chọn 3 chấm (`more-dropdown`).
+  - `EdgeDownloadsPopup/popup.js`: Tự động nhận diện theme sáng thông qua `prefers-color-scheme: light` và lưu trạng thái vào `chrome.storage.local`.
+  - `EdgeDownloadsPopup/background.js`: Hỗ trợ chuyển đổi biểu tượng mặc định, nhấp nháy phát sáng (glow) và các lớp phủ trạng thái (pause, complete) tương thích hoàn hảo với cả hai kiểu nền icon.
+
+#### - **[Cập nhật]**
+- Đồng bộ nâng phiên bản của cả hai tiện ích mở rộng (`EdgeDownloadsPopup` và `EdgeHistoryPopup`) lên `1.3.2` tại các tệp `manifest.json`.
+
+---
+
 ### [v1.3.1] - 2026-09-07
 
 #### - **[Cập nhật]**

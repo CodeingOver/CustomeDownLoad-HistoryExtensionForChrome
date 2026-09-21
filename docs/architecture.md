@@ -26,22 +26,29 @@ d:/CodePython/CustomeExtensionForChrome/
 │   ├── architecture.md                 # Tài liệu kiến trúc hệ thống này
 │   └── CHANGELOG.md                    # Nhật ký thay đổi phiên bản
 ├── EdgeHistoryPopup/                   # Extension Lịch sử phong cách Edge
-│   ├── manifest.json                   # Cấu hình extension lịch sử
+│   ├── manifest.json                   # Cấu hình extension lịch sử (v1.3.3)
 │   ├── popup.html                      # Giao diện popup lịch sử
-│   ├── popup.css                       # Kiểu giao diện tối Fluent
-│   ├── popup.js                        # Logic truy vấn & xử lý lịch sử
-│   ├── icon.svg                        # Icon gốc dạng SVG
+│   ├── popup.css                       # Kiểu giao diện theo Fluent Design
+│   ├── popup.js                        # Logic tìm kiếm, xóa, mở trang lịch sử và tự động đồng bộ theme
+│   ├── background.js                   # Service Worker quản lý vòng đời và chuyển đổi icon theo theme
+│   ├── content.js                      # Content Script tự động nhận diện prefers-color-scheme trên web
+│   ├── icon.svg                        # Icon gốc dạng SVG (trắng)
 │   ├── icon16.png                      # Icon kích thước 16x16
 │   ├── icon32.png                      # Icon kích thước 32x32
 │   ├── icon48.png                      # Icon kích thước 48x48
-│   └── icon128.png                     # Icon kích thước 128x128
+│   ├── icon128.png                     # Icon kích thước 128x128
+│   ├── icon_dark.svg                   # Icon dạng SVG nền tối (Scale 1.0) cho Chrome theme sáng
+│   ├── icon_dark16.png                 # Icon nền tối kích thước 16x16
+│   ├── icon_dark32.png                 # Icon nền tối kích thước 32x32
+│   ├── icon_dark48.png                 # Icon nền tối kích thước 48x48
+│   └── icon_dark128.png                # Icon nền tối kích thước 128x128
 └── EdgeDownloadsPopup/                 # Extension Lượt tải xuống phong cách Edge
-    ├── manifest.json                   # Cấu hình extension lượt tải
+    ├── manifest.json                   # Cấu hình extension lượt tải (v1.3.3)
     ├── popup.html                      # Giao diện popup lượt tải
     ├── popup.css                       # Kiểu giao diện và progress bar
-    ├── popup.js                        # Logic theo dõi & thao tác tải xuống
-    ├── background.js                   # Service Worker quản lý vòng đời tải xuống và vẽ Canvas
-    ├── content.js                      # Content Script hiển thị hoạt ảnh chip tròn bay vào icon khi bắt đầu tải
+    ├── popup.js                        # Logic theo dõi & thao tác tải xuống và tự động đồng bộ theme
+    ├── background.js                   # Service Worker quản lý vòng đời tải xuống và đổi icon theo theme
+    ├── content.js                      # Content Script phát hiện theme và hiển thị hoạt ảnh chip bay khi tải
     ├── offscreen.html                  # HTML chứa script offscreen để polling tiến độ ngầm
     ├── offscreen.js                    # Logic offscreen phát tick polling tiến trình và giữ Service Worker không bị ngủ đông
     ├── icon.svg                        # Icon gốc dạng SVG (trắng)
@@ -54,6 +61,15 @@ d:/CodePython/CustomeExtensionForChrome/
     ├── icon_glow32.png                 # Icon xanh kích thước 32x32
     ├── icon_glow48.png                 # Icon xanh kích thước 48x48
     ├── icon_glow128.png                # Icon xanh kích thước 128x128
+    ├── icon_dark.svg                   # Icon dạng SVG nền tối (Scale 1.0) cho Chrome theme sáng
+    ├── icon_dark16.png                 # Icon nền tối kích thước 16x16
+    ├── icon_dark32.png                 # Icon nền tối kích thước 32x32
+    ├── icon_dark48.png                 # Icon nền tối kích thước 48x48
+    ├── icon_dark128.png                # Icon nền tối kích thước 128x128
+    ├── icon_dark_glow16.png            # Icon nền tối phát sáng 16x16
+    ├── icon_dark_glow32.png            # Icon nền tối phát sáng 32x32
+    ├── icon_dark_glow48.png            # Icon nền tối phát sáng 48x48
+    ├── icon_dark_glow128.png           # Icon nền tối phát sáng 128x128
     ├── pause_filled_icon_202026.png    # Icon pause gốc do người dùng cung cấp
     ├── pause_icon16.png                # Icon pause kích thước 16x16
     ├── pause_icon32.png                # Icon pause kích thước 32x32
@@ -72,12 +88,14 @@ d:/CodePython/CustomeExtensionForChrome/
 Hệ thống chia làm hai thành phần lớn tương ứng với hai tiện ích:
 
 1. **Thành phần Lịch sử (History Component)**:
-   - Giao diện người dùng (`popup.html` & `popup.css`): Hiển thị cấu trúc tab và danh sách kết quả.
-   - Trình điều khiển logic (`popup.js`): Giao tiếp với API trình duyệt (`chrome.history` và `chrome.sessions`) để lấy lịch sử và khôi phục tab/cửa sổ đã đóng gần đây.
+   - Giao diện người dùng (`popup.html` & `popup.css`): Hiển thị cấu trúc tab và danh sách kết quả theo ngôn ngữ Fluent Design.
+   - Trình điều khiển logic (`popup.js`): Giao tiếp với API trình duyệt (`chrome.history` và `chrome.sessions`) để lấy lịch sử và khôi phục tab/cửa sổ đã đóng gần đây. Tích hợp hàm `detectAndSyncTheme()` tự động nhận diện `prefers-color-scheme: light` và đồng bộ về Service Worker.
+   - Content Script (`content.js`): Tự động phát hiện media query theme sáng/tối trên các trang web người dùng mở và gửi thông điệp `theme-detected` về Service Worker.
+   - Service Worker (`background.js`): Lắng nghe `theme-detected`, lưu trữ trạng thái theme vào `chrome.storage.local` và chuyển đổi bộ biểu tượng thanh công cụ (`chrome.action.setIcon`) giữa icon gốc và icon nền tối (Scale 1.0 sắc nét).
 2. **Thành phần Tải xuống (Downloads Component)**:
-   - Giao diện người dùng (`popup.html`, `popup.css`, `popup.js`): Hiển thị danh sách tải xuống phân trang cuộn vô hạn, mở tệp, hiển thị vị trí, tiếp tục/tải lại lượt tải bị gián đoạn và xóa lịch sử. Khi mở popup, `popup.js` tự động kích hoạt vòng lặp live polling 600ms truy vấn các mục `in_progress`, sử dụng thuật toán làm mượt Exponential Moving Average (`EMA`, $\alpha = 0.35$) với bộ nhớ `speedTracker` để đo và hiển thị tốc độ tải xuống tức thời chuẩn xác (`32.7 MB/s - 491 MB of 1.2 GB`). Đồng thời lắng nghe message batch `sync-all-progress` từ Service Worker qua `chrome.runtime.onMessage` để cập nhật DOM tại chỗ theo mô hình event-driven.
-   - Content Script (`content.js`): Chạy ngầm cô lập trên các trang web (`http://*/*`, `https://*/*`) bằng Shadow DOM. Theo dõi tọa độ click chuột (`pointerdown`) và lắng nghe tin nhắn `download-started-fly` từ Service Worker. Khi phát hiện bắt đầu tải, hiển thị ngay hoạt ảnh chip tròn Material Design phong cách Google Chrome (màu xanh `#1a73e8`, 26px) bay thẳng tắp dứt khoát (~280ms) từ vị trí click chuột (hoặc trung tâm màn hình) hướng trực diện vào biểu tượng tiện ích ở góc trên bên phải thanh công cụ và tự giải phóng toàn bộ DOM ngay khi chạm đích, không dùng hiệu ứng thứ cấp rườm rà.
-   - Service Worker (`background.js`): Chạy ngầm để quản lý vòng đời tải xuống, tắt UI mặc định của Chrome khi Service Worker nạp bằng `chrome.downloads.setUiOptions`, điều phối phát tin hiệu ứng bay tới tab active thông qua `notifyTabDownloadStarted()`, đổi icon toolbar theo trạng thái tải xuống (mặc định, glow, pause overlay, hoàn tất overlay), điều phối đóng/mở tài liệu offscreen. Đồng thời gom dữ liệu tiến trình trong `activeDownloads` thành message batch gửi về Popup tối đa mỗi 3 giây khi chạy ngầm.
+   - Giao diện người dùng (`popup.html`, `popup.css`, `popup.js`): Hiển thị danh sách tải xuống phân trang cuộn vô hạn, mở tệp, hiển thị vị trí, tiếp tục/tải lại lượt tải bị gián đoạn và xóa lịch sử. Tự động phát hiện theme người dùng và đồng bộ về Service Worker (hoàn toàn tự động, không dùng toggle thủ công). Khi mở popup, `popup.js` tự động kích hoạt vòng lặp live polling 600ms truy vấn các mục `in_progress`, sử dụng thuật toán làm mượt Exponential Moving Average (`EMA`, $\alpha = 0.35$) với bộ nhớ `speedTracker` để đo và hiển thị tốc độ tải xuống tức thời chuẩn xác (`32.7 MB/s - 491 MB of 1.2 GB`). Đồng thời lắng nghe message batch `sync-all-progress` từ Service Worker qua `chrome.runtime.onMessage` để cập nhật DOM tại chỗ theo mô hình event-driven.
+   - Content Script (`content.js`): Chạy ngầm cô lập trên các trang web (`http://*/*`, `https://*/*`) bằng Shadow DOM với `all_frames: true`. Ghi nhận sự kiện click chuột (`pointerdown`) kể cả trong thẻ `<iframe>` và chuyển tiếp lên `window.top`. Tự động nhận diện theme qua media query listener. Lắng nghe tin nhắn `download-started-fly` từ Service Worker. Khi phát hiện bắt đầu tải trên tab đang hiển thị (`document.visibilityState === 'visible'`), hiển thị ngay hoạt ảnh chip tròn Material Design phong cách Google Chrome (màu xanh `#1a73e8`, 26px) bay thẳng tắp dứt khoát (~280ms) từ vị trí click chuột (hoặc trung tâm màn hình) hướng trực diện vào biểu tượng tiện ích ở góc trên bên phải thanh công cụ và tự giải phóng toàn bộ DOM ngay khi chạm đích, không dùng hiệu ứng thứ cấp rườm rà.
+   - Service Worker (`background.js`): Chạy ngầm để quản lý vòng đời tải xuống, tắt UI mặc định của Chrome khi Service Worker nạp bằng `chrome.downloads.setUiOptions`, lọc triệt để các lượt tải cũ khi khởi động trình duyệt (`isFreshDownload`), điều phối phát tin hiệu ứng bay tới tab active/openerTabId hoặc inject qua `chrome.scripting`, tự động quản lý và đổi icon toolbar linh hoạt giữa nền trong suốt và nền đen (`useDarkBgIcon` với glyph Scale 1.0 to chuẩn xác cho theme sáng), điều phối hoạt ảnh phát sáng (glow), overlay trạng thái (pause, complete), và đóng/mở tài liệu offscreen. Đồng thời gom dữ liệu tiến trình trong `activeDownloads` thành message batch gửi về Popup tối đa mỗi 3 giây khi chạy ngầm.
    - Tài liệu ẩn (`offscreen.html`, `offscreen.js`): Môi trường DOM ẩn phát tick `'polling-tick'` định kỳ 3 giây để Service Worker đọc nhẹ `bytesReceived` và `totalBytes` bằng `chrome.downloads.search({ state: 'in_progress' })`, vì `chrome.downloads.onChanged` không cung cấp nhịp thay đổi byte liên tục.
 
 ---
@@ -94,7 +112,7 @@ Hệ thống chia làm hai thành phần lớn tương ứng với hai tiện í
 ### Luồng 2: Theo dõi, đo tốc độ và cập nhật tiến trình tải xuống
 1. Người dùng bắt đầu tải xuống một tệp tin.
 2. Trình duyệt kích hoạt sự kiện `chrome.downloads.onCreated`.
-3. Background Service Worker đã thiết lập vô hiệu hóa bong bóng tải gốc ở giai đoạn khởi động bằng `setUiOptions`. Khi nhận sự kiện tải mới, tiến trình tải được xử lý êm trong nền mà không tự động mở popup, tránh làm gián đoạn trải nghiệm người dùng. Đồng thời, Service Worker kích hoạt `notifyTabDownloadStarted()` gửi tin nhắn `download-started-fly` đến Content Script của tab active hiện tại để tạo hiệu ứng chip tròn bay vào biểu tượng tải trên thanh công cụ. Sau đó Service Worker khởi động hoạt ảnh nhấp nháy phát sáng (glow icon) và gọi `ensureOffscreenDocument()` để kích hoạt tài liệu ẩn Offscreen.
+3. Background Service Worker đã thiết lập vô hiệu hóa bong bóng tải gốc ở giai đoạn khởi động bằng `setUiOptions`. Khi nhận sự kiện tải mới qua `onCreated`, Service Worker kiểm tra `isFreshDownload(item)` để đảm bảo chỉ kích hoạt với lượt tải mới trong phiên hiện tại (tránh kích hoạt hoạt ảnh khi khởi động trình duyệt). Sau đó, Service Worker kích hoạt `notifyTabDownloadStarted()`, tự động gửi tin nhắn `download-started-fly` đến tab active hoặc tab cha (`openerTabId`), đồng thời sẵn sàng inject `content.js` qua `chrome.scripting` nếu tab chưa được nạp script. Đồng thời, Service Worker khởi động hoạt ảnh nhấp nháy phát sáng (glow icon) và gọi `ensureOffscreenDocument()` để kích hoạt tài liệu ẩn Offscreen.
 4. Tài liệu Offscreen hoạt động và gửi tin nhắn `'polling-tick'` định kỳ mỗi 3 giây để đánh thức Service Worker và kích hoạt một lượt đọc nhẹ `chrome.downloads.search({ state: 'in_progress' })`.
 5. Service Worker nhận sự kiện trạng thái qua `chrome.downloads.onChanged` để cập nhật các trường quan trọng như `state`, `filename`, `paused` và `error`. Với mỗi tick polling, Service Worker chỉ so sánh hai trường `bytesReceived` và `totalBytes`; nếu byte thật sự thay đổi thì mới cập nhật Badge và gửi message batch `sync-all-progress` về Popup.
 6. Khi popup đang mở:
@@ -140,6 +158,7 @@ Hệ thống sử dụng các API gốc của trình duyệt Chrome:
 - `chrome.action.setBadgeText`: Cập nhật văn bản chỉ số badge (phần trăm).
 - `chrome.tabs.query`: Tìm kiếm tab active trong cửa sổ hiện hành để điều phối gửi tin nhắn kích hoạt hoạt ảnh bay.
 - `chrome.tabs.sendMessage`: Truyền tin nhắn `download-started-fly` từ Service Worker tới Content Script trong tab active.
+- `chrome.scripting.executeScript`: Chủ động nạp `content.js` vào các tab web chưa được inject khi phát hiện tải xuống.
 - `chrome.runtime.onMessage.addListener`: Lắng nghe tin nhắn trao đổi dữ liệu giữa các thành phần, nhận dữ liệu tiến trình tải xuống event-driven và xử lý tín hiệu dọn badge hoàn tất mà không xóa nhầm badge phần trăm khi vẫn còn tệp đang tải.
 
 ---
