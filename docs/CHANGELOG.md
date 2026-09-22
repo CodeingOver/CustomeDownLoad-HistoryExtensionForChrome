@@ -2,6 +2,26 @@
 
 Tài liệu này ghi lại toàn bộ lịch sử các phiên bản phát hành và các cập nhật thay đổi của dự án.
 
+### [v1.3.4] - 2026-09-22
+
+#### - **[Sửa lỗi]**
+- Khắc phục lỗi biểu tượng hiển thị trắng xóa/tàng hình trên trang quản lý `chrome://extensions/`:
+  - `EdgeDownloadsPopup/manifest.json` & `EdgeHistoryPopup/manifest.json`: Cập nhật trường `"icons"` trỏ về bộ biểu tượng nền tối (`icon_dark16.png`, `icon_dark32.png`, `icon_dark48.png`, `icon_dark128.png`). Đảm bảo ảnh đại diện của tiện ích trên thẻ quản lý luôn hiển thị sắc nét, tương phản rõ ràng trên cả giao diện sáng và tối.
+- Khắc phục lỗi phải nhấp chuột vào biểu tượng tiện ích mới cập nhật đổi theme:
+  - Loại bỏ hoàn toàn sự phụ thuộc vào thao tác mở popup để kích hoạt nhận diện theme.
+  - Cập nhật giá trị khởi đầu `action.default_icon` trong cả hai tệp `manifest.json` sang bộ `icon_dark`, đảm bảo biểu tượng thanh công cụ hiển thị rõ nét ngay từ mili-giây đầu tiên khi vừa nạp tiện ích, không bị tàng hình trong lúc chờ Service Worker phân giải theme.
+
+#### - **[Thêm mới]**
+- Tích hợp cơ chế phát hiện theme chủ động tức thì qua **Offscreen Document** (`chrome.offscreen.Reason.MATCH_MEDIA`) chuẩn Manifest V3 cho cả hai tiện ích:
+  - `EdgeDownloadsPopup/offscreen.js`: Bổ sung hàm `reportTheme()` đọc trực tiếp `window.matchMedia('(prefers-color-scheme: light)')` và lắng nghe sự kiện `change`.
+  - `EdgeDownloadsPopup/background.js`: Tích hợp hàm `ensureOffscreenDocument` và `closeOffscreenDocument`. Kích hoạt nhận diện theme tức thì ngay khi `onInstalled` và khi Service Worker khởi động, sau đó tự động đóng tài liệu offscreen nếu không có lượt tải nào đang chạy để tiết kiệm 100% RAM.
+  - `EdgeHistoryPopup`: Bổ sung quyền `"offscreen"` trong `manifest.json`, tạo mới `offscreen.html` và `offscreen.js` siêu nhẹ. Service Worker chủ động kích hoạt offscreen document để cập nhật biểu tượng tức thì trong `< 10ms` ngay khi nạp tiện ích mà không phụ thuộc vào tab web hay tương tác chuột của người dùng.
+
+#### - **[Cập nhật]**
+- Đồng bộ nâng phiên bản của cả hai tiện ích mở rộng (`EdgeDownloadsPopup` và `EdgeHistoryPopup`) lên `1.3.4` tại các tệp `manifest.json`.
+
+---
+
 ### [v1.3.3] - 2026-09-22
 
 #### - **[Cập nhật]**

@@ -61,6 +61,48 @@ function applyIconTheme(enabled) {
   }
 }
 
+let creatingOffscreenPromise = null;
+
+async function hasOffscreenDocument() {
+  if ('getContexts' in chrome.runtime) {
+    const contexts = await chrome.runtime.getContexts({
+      contextTypes: ['OFFSCREEN_DOCUMENT'],
+      documentUrls: [chrome.runtime.getURL('offscreen.html')]
+    });
+    return contexts && contexts.length > 0;
+  }
+  if ('offscreen' in chrome && 'hasDocument' in chrome.offscreen) {
+    return await chrome.offscreen.hasDocument();
+  }
+  return false;
+}
+
+async function ensureOffscreenDocument(reasons = [chrome.offscreen.Reason.MATCH_MEDIA], justification = 'Detect system color scheme and progress polling') {
+  if (await hasOffscreenDocument()) {
+    return;
+  }
+  if (creatingOffscreenPromise) {
+    await creatingOffscreenPromise;
+    return;
+  }
+  creatingOffscreenPromise = chrome.offscreen.createDocument({
+    url: 'offscreen.html',
+    reasons: reasons,
+    justification: justification
+  });
+  try {
+    await creatingOffscreenPromise;
+  } finally {
+    creatingOffscreenPromise = null;
+  }
+}
+
+async function closeOffscreenDocument() {
+  if (await hasOffscreenDocument()) {
+    await chrome.offscreen.closeDocument().catch(() => {});
+  }
+}
+
 // Khởi tạo cài đặt icon theme từ storage khi service worker khởi động
 chrome.storage.local.get('useDarkBgIcon', (res) => {
   if (res && res.useDarkBgIcon !== undefined) {
@@ -68,7 +110,15 @@ chrome.storage.local.get('useDarkBgIcon', (res) => {
     if (!wasDownloading && !isCompleteState) {
       setActionIcon(getDefaultIconPaths());
     }
+  } else {
+    // Chưa có thông tin theme trong storage (vừa cài đặt): kích hoạt offscreen để đọc matchMedia tức thì
+    ensureOffscreenDocument([chrome.offscreen.Reason.MATCH_MEDIA], 'Detect system color scheme for extension toolbar icon').catch(() => {});
   }
+});
+
+// Lắng nghe sự kiện cài đặt / cập nhật extension
+chrome.runtime.onInstalled.addListener(() => {
+  ensureOffscreenDocument([chrome.offscreen.Reason.MATCH_MEDIA], 'Detect system color scheme on install').catch(() => {});
 });
 
 function isFreshDownload(item) {
@@ -628,6 +678,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   } else if (request.action === 'set-icon-theme' || request.action === 'theme-detected') {
     const isLight = request.useDarkBgIcon !== undefined ? !!request.useDarkBgIcon : !!request.isLight;
     applyIconTheme(isLight);
+    // Nếu tin nhắn đến từ offscreen khởi tạo và không có download nào đang chạy, đóng offscreen document để giải phóng RAM
+    if (request.source === 'offscreen') {
+      const hasActiveDownloads = Object.values(activeDownloads).some(item =>
+        item && item.state === 'in_progress'
+      );
+      if (!hasActiveDownloads) {
+        closeOffscreenDocument().catch(() => {});
+      }
+    }
   }
 });
 

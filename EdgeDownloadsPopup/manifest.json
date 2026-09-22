@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "incognito": "spanning",
   "name": "Edge Downloads",
-  "version": "1.3.3",
+  "version": "1.3.4",
   "description": "Popup quản lý lượt tải xuống thiết kế Fluent phong cách Edge",
   "permissions": [
     "downloads",
@@ -31,15 +31,15 @@
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
-      "16": "icon16.png",
-      "32": "icon32.png",
-      "48": "icon48.png"
+      "16": "icon_dark16.png",
+      "32": "icon_dark32.png",
+      "48": "icon_dark48.png"
     }
   },
   "icons": {
-    "16": "icon16.png",
-    "32": "icon32.png",
-    "48": "icon48.png",
-    "128": "icon128.png"
+    "16": "icon_dark16.png",
+    "32": "icon_dark32.png",
+    "48": "icon_dark48.png",
+    "128": "icon_dark128.png"
   }
 }
