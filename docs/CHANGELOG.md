@@ -2,6 +2,19 @@
 
 Tài liệu này ghi lại toàn bộ lịch sử các phiên bản phát hành và các cập nhật thay đổi của dự án.
 
+### [v1.3.5] - 2026-09-25
+
+#### - **[Sửa lỗi]**
+- Khắc phục triệt để lỗi đảo ngược chế độ biểu tượng (icon mode) khi nhấp chuột vào tiện ích tải xuống (`EdgeDownloadsPopup`):
+  - `EdgeDownloadsPopup/background.js`: Trong hàm `stopAnimation()`, sửa đổi lệnh gọi `setActionIcon(DEFAULT_ICON_PATHS)` thành `setActionIcon(getDefaultIconPaths())`.
+  - **Nguyên nhân trước đây**: Khi người dùng nhấp chuột mở popup tải xuống, `popup.js` gửi thông điệp `clear-complete-badge` về Service Worker để xóa huy hiệu hoàn tất và gọi `stopAnimation()`. Do hàm `stopAnimation()` bị gán cứng đường dẫn `DEFAULT_ICON_PATHS` (bộ icon trắng của Theme Tối) thay vì gọi hàm động `getDefaultIconPaths()`, biểu tượng tiện ích của người dùng đang ở Theme Sáng bị ghi đè tức thì thành icon trắng (bị đảo ngược mode và tàng hình trên nền sáng).
+  - **Kết quả sau sửa đổi**: Hàm `stopAnimation()` luôn phân giải chính xác icon theo trạng thái theme hiện hành của người dùng (`useDarkBgIcon`), loại bỏ hoàn toàn hiện tượng đảo ngược mode khi nhấp mở popup.
+
+#### - **[Cập nhật]**
+- Đồng bộ nâng phiên bản của cả hai tiện ích mở rộng (`EdgeDownloadsPopup` và `EdgeHistoryPopup`) lên `1.3.5` tại các tệp `manifest.json`.
+
+---
+
 ### [v1.3.4] - 2026-09-22
 
 #### - **[Sửa lỗi]**

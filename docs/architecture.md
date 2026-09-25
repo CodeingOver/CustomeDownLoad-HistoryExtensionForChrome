@@ -26,7 +26,7 @@ d:/CodePython/CustomeExtensionForChrome/
 │   ├── architecture.md                 # Tài liệu kiến trúc hệ thống này
 │   └── CHANGELOG.md                    # Nhật ký thay đổi phiên bản
 ├── EdgeHistoryPopup/                   # Extension Lịch sử phong cách Edge
-│   ├── manifest.json                   # Cấu hình extension lịch sử (v1.3.4)
+│   ├── manifest.json                   # Cấu hình extension lịch sử (v1.3.5)
 │   ├── popup.html                      # Giao diện popup lịch sử
 │   ├── popup.css                       # Kiểu giao diện theo Fluent Design
 │   ├── popup.js                        # Logic tìm kiếm, xóa, mở trang lịch sử và tự động đồng bộ theme
@@ -45,7 +45,7 @@ d:/CodePython/CustomeExtensionForChrome/
 │   ├── icon_dark48.png                 # Icon nền tối kích thước 48x48
 │   └── icon_dark128.png                # Icon nền tối kích thước 128x128
 └── EdgeDownloadsPopup/                 # Extension Lượt tải xuống phong cách Edge
-    ├── manifest.json                   # Cấu hình extension lượt tải (v1.3.4)
+    ├── manifest.json                   # Cấu hình extension lượt tải (v1.3.5)
     ├── popup.html                      # Giao diện popup lượt tải
     ├── popup.css                       # Kiểu giao diện và progress bar
     ├── popup.js                        # Logic theo dõi & thao tác tải xuống và tự động đồng bộ theme

@@ -574,7 +574,7 @@ function clearProgressAnimation() {
 // Dừng hoạt ảnh nhấp nháy và khôi phục biểu tượng mặc định
 function stopAnimation() {
   clearProgressAnimation();
-  setActionIcon(DEFAULT_ICON_PATHS);
+  setActionIcon(getDefaultIconPaths());
 }
 
 function setActionIcon(path) {
