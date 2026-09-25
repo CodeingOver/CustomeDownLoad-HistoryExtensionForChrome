@@ -32,7 +32,9 @@ async function ensureOffscreenDocument() {
     return;
   }
   if (creatingOffscreenPromise) {
-    await creatingOffscreenPromise;
+    try {
+      await creatingOffscreenPromise;
+    } catch (e) {}
     return;
   }
   creatingOffscreenPromise = chrome.offscreen.createDocument({
@@ -42,12 +44,24 @@ async function ensureOffscreenDocument() {
   });
   try {
     await creatingOffscreenPromise;
+  } catch (err) {
+    if (err && err.message) {
+      if (err.message.includes('Only a single offscreen document may be created') ||
+          err.message.includes('closed before fully loading')) {
+        return;
+      }
+    }
   } finally {
     creatingOffscreenPromise = null;
   }
 }
 
 async function closeOffscreenDocument() {
+  if (creatingOffscreenPromise) {
+    try {
+      await creatingOffscreenPromise;
+    } catch (e) {}
+  }
   if (await hasOffscreenDocument()) {
     await chrome.offscreen.closeDocument().catch(() => {});
   }

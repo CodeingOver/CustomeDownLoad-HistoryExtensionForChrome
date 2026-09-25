@@ -64,25 +64,32 @@ function applyIconTheme(enabled) {
 let creatingOffscreenPromise = null;
 
 async function hasOffscreenDocument() {
-  if ('getContexts' in chrome.runtime) {
-    const contexts = await chrome.runtime.getContexts({
-      contextTypes: ['OFFSCREEN_DOCUMENT'],
-      documentUrls: [chrome.runtime.getURL('offscreen.html')]
-    });
-    return contexts && contexts.length > 0;
-  }
-  if ('offscreen' in chrome && 'hasDocument' in chrome.offscreen) {
-    return await chrome.offscreen.hasDocument();
-  }
+  try {
+    if ('getContexts' in chrome.runtime) {
+      const contexts = await chrome.runtime.getContexts({
+        contextTypes: ['OFFSCREEN_DOCUMENT'],
+        documentUrls: [chrome.runtime.getURL('offscreen.html')]
+      });
+      return Boolean(contexts && contexts.length > 0);
+    }
+    if ('offscreen' in chrome && 'hasDocument' in chrome.offscreen) {
+      return await chrome.offscreen.hasDocument();
+    }
+  } catch (e) {}
   return false;
 }
 
-async function ensureOffscreenDocument(reasons = [chrome.offscreen.Reason.MATCH_MEDIA], justification = 'Detect system color scheme and progress polling') {
+async function ensureOffscreenDocument(
+  reasons = [chrome.offscreen.Reason.MATCH_MEDIA, chrome.offscreen.Reason.LOCAL_STORAGE],
+  justification = 'Detect system color scheme and poll download progress'
+) {
   if (await hasOffscreenDocument()) {
     return;
   }
   if (creatingOffscreenPromise) {
-    await creatingOffscreenPromise;
+    try {
+      await creatingOffscreenPromise;
+    } catch (e) {}
     return;
   }
   creatingOffscreenPromise = chrome.offscreen.createDocument({
@@ -92,14 +99,35 @@ async function ensureOffscreenDocument(reasons = [chrome.offscreen.Reason.MATCH_
   });
   try {
     await creatingOffscreenPromise;
+    debugLog("[background.js] Đã tạo thành công Offscreen Document.");
+  } catch (err) {
+    if (err && err.message) {
+      if (err.message.includes('Only a single offscreen document may be created') ||
+          err.message.includes('closed before fully loading')) {
+        return;
+      }
+    }
+    debugLog("[background.js] Thông tin tạo Offscreen Document:", err);
   } finally {
     creatingOffscreenPromise = null;
   }
 }
 
 async function closeOffscreenDocument() {
+  // Nếu document đang trong quá trình nạp, phải đợi nạp xong hoàn toàn rồi mới đóng
+  // để tránh lỗi 'Offscreen document closed before fully loading'
+  if (creatingOffscreenPromise) {
+    try {
+      await creatingOffscreenPromise;
+    } catch (e) {}
+  }
   if (await hasOffscreenDocument()) {
-    await chrome.offscreen.closeDocument().catch(() => {});
+    try {
+      await chrome.offscreen.closeDocument();
+      debugLog("[background.js] Đã đóng Offscreen Document.");
+    } catch (err) {
+      debugLog("[background.js] Thông tin khi đóng Offscreen Document:", err);
+    }
   }
 }
 
@@ -417,64 +445,7 @@ function updateBadgeAndAnimation() {
   }
 }
 
-let offscreenCreationPromise = null;
 
-async function ensureOffscreenDocument() {
-  if (offscreenCreationPromise) {
-    return offscreenCreationPromise;
-  }
-
-  offscreenCreationPromise = ensureOffscreenDocumentInternal().finally(() => {
-    offscreenCreationPromise = null;
-  });
-
-  return offscreenCreationPromise;
-}
-
-async function ensureOffscreenDocumentInternal() {
-  if (chrome.runtime.getContexts) {
-    const contexts = await chrome.runtime.getContexts({
-      contextTypes: ['OFFSCREEN_DOCUMENT']
-    });
-    if (contexts.length > 0) {
-      chrome.runtime.sendMessage({ action: 'start-polling' }).catch(() => {});
-      return;
-    }
-  }
-  
-  try {
-    await chrome.offscreen.createDocument({
-      url: 'offscreen.html',
-      reasons: ['LOCAL_STORAGE'],
-      justification: 'Keep service worker alive and poll download progress'
-    });
-    debugLog("[background.js] Đã tạo thành công Offscreen Document.");
-    chrome.runtime.sendMessage({ action: 'start-polling' }).catch(() => {});
-  } catch (err) {
-    if (err && err.message && err.message.includes('Only a single offscreen document may be created')) {
-      chrome.runtime.sendMessage({ action: 'start-polling' }).catch(() => {});
-      return;
-    }
-
-    console.error("[background.js] Lỗi khi tạo Offscreen Document:", err);
-  }
-}
-
-async function closeOffscreenDocument() {
-  if (chrome.runtime.getContexts) {
-    const contexts = await chrome.runtime.getContexts({
-      contextTypes: ['OFFSCREEN_DOCUMENT']
-    });
-    if (contexts.length > 0) {
-      try {
-        await chrome.offscreen.closeDocument();
-        debugLog("[background.js] Đã đóng Offscreen Document.");
-      } catch (err) {
-        console.error("[background.js] Lỗi khi đóng Offscreen Document:", err);
-      }
-    }
-  }
-}
 
 // Hiển thị icon checkmark khi hoàn thành tải xuống
 function showCompletionBadge() {

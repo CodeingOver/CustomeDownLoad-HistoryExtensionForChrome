@@ -2,6 +2,23 @@
 
 Tài liệu này ghi lại toàn bộ lịch sử các phiên bản phát hành và các cập nhật thay đổi của dự án.
 
+### [v1.3.6] - 2026-09-25
+
+#### - **[Sửa lỗi]**
+- Khắc phục triệt để lỗi `Error: Offscreen document closed before fully loading` hiển thị cảnh báo đỏ trên trang quản lý tiện ích `chrome://extensions/`:
+  - `EdgeDownloadsPopup/background.js`:
+    - Loại bỏ hoàn toàn khối hàm quản lý Offscreen Document trùng lặp (`ensureOffscreenDocumentInternal`, `closeOffscreenDocument` cũ) vốn ghi đè lên hàm chuẩn và chứa lệnh `console.error` gây kích hoạt cờ đỏ lỗi trong Chrome.
+    - Đồng bộ hóa vòng đời Offscreen Document: Trong hàm `closeOffscreenDocument()`, bổ sung bước `await creatingOffscreenPromise` trước khi gọi `chrome.offscreen.closeDocument()`. Điều này giải quyết dứt điểm hiện tượng Race Condition khi tài liệu nhận thông điệp `theme-detected` và yêu cầu đóng ngay lập tức trong lúc Chromium còn đang nạp tài liệu dở dang.
+    - Bổ sung cơ chế bắt lỗi an toàn (safe error handling) trong `ensureOffscreenDocument()`, tự động bỏ qua các thông báo chu trình sống bình thường (`closed before fully loading` hoặc `Only a single offscreen document may be created`), tuyệt đối không dùng `console.error` trong Service Worker để tránh báo lỗi giả cho người dùng.
+  - `EdgeHistoryPopup/background.js`:
+    - Đồng bộ cơ chế `await creatingOffscreenPromise` trong `closeOffscreenDocument()` và bổ sung try-catch an toàn trong `ensureOffscreenDocument()`.
+
+#### - **[Cập nhật]**
+- Đồng bộ nâng phiên bản của cả hai tiện ích mở rộng (`EdgeDownloadsPopup` và `EdgeHistoryPopup`) lên `1.3.6` tại các tệp `manifest.json`.
+
+---
+
+
 ### [v1.3.5] - 2026-09-25
 
 #### - **[Sửa lỗi]**
